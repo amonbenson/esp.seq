@@ -1,30 +1,51 @@
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include "dac.h"
+#include "channel.h"
 
 
-#ifndef LED_BUILTIN
-#define LED_BUILTIN 15
-#endif
+#define NUM_CHANNELS 4
+
+
+const channel_config_t channel_configs[NUM_CHANNELS] = {
+    {
+        .gate_pin = GPIO_NUM_6,
+        .trigger_pin = GPIO_NUM_7,
+        .dac_pin = GPIO_NUM_1
+    },
+    {
+        .gate_pin = GPIO_NUM_8,
+        .trigger_pin = GPIO_NUM_9,
+        .dac_pin = GPIO_NUM_2
+    },
+    {
+        .gate_pin = GPIO_NUM_10,
+        .trigger_pin = GPIO_NUM_11,
+        .dac_pin = GPIO_NUM_3
+    },
+    {
+        .gate_pin = GPIO_NUM_12,
+        .trigger_pin = GPIO_NUM_13,
+        .dac_pin = GPIO_NUM_34
+    }
+};
+
+static channel_t channels[NUM_CHANNELS];
 
 
 void app_main(void) {
-    esp_err_t err;
-    gpio_config_t io_conf;
+    ESP_ERROR_CHECK(dac_global_init());
 
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << LED_BUILTIN);
-    io_conf.pull_down_en = 0;
-    io_conf.pull_up_en = 0;
+    // create all channels
+    for (int i = 0; i < NUM_CHANNELS; i++) {
+        ESP_ERROR_CHECK(channel_create(&channel_configs[i], &channels[i]));
+    }
 
-    err = gpio_config(&io_conf);
-    ESP_ERROR_CHECK(err);
-
-    while (true) {
-        gpio_set_level(LED_BUILTIN, 0);
-        vTaskDelay(500 / portTICK_RATE_MS);
-        gpio_set_level(LED_BUILTIN, 1);
-        vTaskDelay(500 / portTICK_RATE_MS);
+    while (1) {
+        ESP_ERROR_CHECK(dac_write(&channels[0].dac, DAC_A, 0));
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ESP_ERROR_CHECK(dac_write(&channels[0].dac, DAC_A, 2000));
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

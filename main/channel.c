@@ -34,8 +34,7 @@ esp_err_t channel_create(const channel_config_t *config, channel_t *channel) {
     // setup the note / velocity dac
     ESP_LOGI(TAG, "configuring dac");
     const dac_config_t dac_config = {
-        .cs_pin = config->dac_pin,
-        .vref_mv = 3300
+        .cs_pin = config->dac_pin
     };
     err = dac_create(&dac_config, &channel->dac);
     if (err != ESP_OK) return err;

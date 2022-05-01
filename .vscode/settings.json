@@ -6,7 +6,7 @@
     "interface/ftdi/esp32_devkitj_v1.cfg",
     "target/esp32s2.cfg"
   ],
-  "idf.flashType": "UART",
+  "idf.flashType": "DFU",
   "files.associations": {
     "*.c": "c",
     "*.lds": "linkerscript",

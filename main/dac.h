@@ -5,7 +5,9 @@
 #include <esp_timer.h>
 
 
-#define DAC_TIMER_PERIOD_US 10000 // 50
+#define DAC_MAX_DEVICES 4
+
+#define DAC_TIMER_PERIOD_US 500
 
 #define DAC_SPI_HOST SPI2_HOST
 #define DAC_SPI_SPEED_HZ 10000000
@@ -56,11 +58,11 @@ typedef struct {
 typedef struct {
     dac_config_t config;
     spi_device_handle_t spi_device;
-    esp_timer_handle_t timer;
     int64_t last_time;
 
     uint32_t value_a, value_b;
     uint32_t error_a, error_b;
+    uint16_t last_written_a, last_written_b;
 } dac_t;
 
 

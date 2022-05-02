@@ -44,11 +44,9 @@ void app_main(void) {
     ESP_ERROR_CHECK(usbmidi_init());
 
     // create all channels
-    for (int i = 0; i < NUM_CHANNELS; i++) {
+    /* for (int i = 0; i < NUM_CHANNELS; i++) {
         ESP_ERROR_CHECK(channel_init(&channel_configs[i], &channels[i]));
-    }
-
-    channel_set_note(&channels[0], 30);
+    } */
 
     vTaskDelete(NULL);
 }

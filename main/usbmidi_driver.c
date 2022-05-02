@@ -11,12 +11,69 @@ static uint32_t usbmidi_driver_add_event(usbmidi_driver_t *driver, usbmidi_event
 }
 
 static void usbmidi_driver_open_dev(usbmidi_driver_t *driver) {
-    assert(driver->client != NULL);
-    ESP_LOGI(TAG, "opening device 0x%02x", driver->device_address);
+    assert(driver->device_address != 0);
+    ESP_LOGI(TAG, "opening device at 0x%02x", driver->device_address);
     ESP_ERROR_CHECK(usb_host_device_open(driver->client, driver->device_address, &driver->device));
 
     // get the device info next
     usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_DEV_INFO);
+}
+
+static void usbmidi_driver_get_dev_info(usbmidi_driver_t *driver) {
+    usb_device_info_t info;
+
+    assert(driver->device != NULL);
+    ESP_LOGI(TAG, "getting device information");
+    ESP_ERROR_CHECK(usb_host_device_info(driver->device, &info));
+
+    // get the device descriptor next
+    usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_DEV_DESC);
+}
+
+static void usbmidi_driver_get_dev_desc(usbmidi_driver_t *driver) {
+    const usb_device_desc_t *descriptor;
+
+    assert(driver->device != NULL);
+    ESP_LOGI(TAG, "getting device descriptor");
+    ESP_ERROR_CHECK(usb_host_get_device_descriptor(driver->device, &descriptor));
+    usb_print_device_descriptor(descriptor);
+
+    // get the configuration descriptor next
+    usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_CONFIG_DESC);
+}
+
+static void usbmidi_driver_get_config_desc(usbmidi_driver_t *driver) {
+    const usb_config_desc_t *descriptor;
+
+    assert(driver->device != NULL);
+    ESP_LOGI(TAG, "getting configuration descriptor");
+    ESP_ERROR_CHECK(usb_host_get_active_config_descriptor(driver->device, &descriptor));
+    usb_print_config_descriptor(descriptor, NULL);
+
+    
+
+    // get the string descriptors next
+    //usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_STR_DESC);
+}
+
+static void usbmidi_driver_get_str_desc(usbmidi_driver_t *driver) {
+    usb_device_info_t info;
+
+    assert(driver->device != NULL);
+    ESP_LOGI(TAG, "getting string descriptors");
+    ESP_ERROR_CHECK(usb_host_device_info(driver->device, &info));
+
+    if (info.str_desc_manufacturer) {
+        usb_print_string_descriptor(info.str_desc_manufacturer);
+    }
+
+    if (info.str_desc_product) {
+        usb_print_string_descriptor(info.str_desc_product);
+    }
+
+    if (info.str_desc_serial_num) {
+        usb_print_string_descriptor(info.str_desc_serial_num);
+    }
 }
 
 static void usbmidi_driver_close_dev(usbmidi_driver_t *driver) {
@@ -79,6 +136,18 @@ void usbmidi_driver_task(void *arg) {
         switch (event) {
             case USBMIDI_EVENT_OPEN_DEV:
                 usbmidi_driver_open_dev(&driver);
+                break;
+            case USBMIDI_EVENT_GET_DEV_INFO:
+                usbmidi_driver_get_dev_info(&driver);
+                break;
+            case USBMIDI_EVENT_GET_DEV_DESC:
+                usbmidi_driver_get_dev_desc(&driver);
+                break;
+            case USBMIDI_EVENT_GET_CONFIG_DESC:
+                usbmidi_driver_get_config_desc(&driver);
+                break;
+            case USBMIDI_EVENT_GET_STR_DESC:
+                usbmidi_driver_get_str_desc(&driver);
                 break;
             case USBMIDI_EVENT_CLOSE_DEV:
                 usbmidi_driver_close_dev(&driver);

@@ -3,11 +3,25 @@
 #include <esp_log.h>
 
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+
 static const char *TAG = "usbmidi_driver";
 
 
 static uint32_t usbmidi_driver_add_event(usbmidi_driver_t *driver, usbmidi_event_t event) {
     return xQueueSend(driver->events, &event, 0);
+}
+
+static void usbmidi_driver_data_in_callback(usb_transfer_t *transfer) {
+    usbmidi_driver_t *driver = (usbmidi_driver_t *) transfer->context;
+    ESP_LOGI(TAG, "data in callback");
+}
+
+static void usbmidi_driver_data_out_callback(usb_transfer_t *transfer) {
+    usbmidi_driver_t *driver = (usbmidi_driver_t *) transfer->context;
+    ESP_LOGI(TAG, "data out callback");
 }
 
 static void usbmidi_driver_open_dev(usbmidi_driver_t *driver) {
@@ -31,12 +45,9 @@ static void usbmidi_driver_get_dev_info(usbmidi_driver_t *driver) {
 }
 
 static void usbmidi_driver_get_dev_desc(usbmidi_driver_t *driver) {
-    const usb_device_desc_t *descriptor;
-
     assert(driver->device != NULL);
     ESP_LOGI(TAG, "getting device descriptor");
-    ESP_ERROR_CHECK(usb_host_get_device_descriptor(driver->device, &descriptor));
-    usb_print_device_descriptor(descriptor);
+    ESP_ERROR_CHECK(usb_host_get_device_descriptor(driver->device, &driver->device_descriptor));
 
     // get the configuration descriptor next
     usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_CONFIG_DESC);
@@ -44,16 +55,79 @@ static void usbmidi_driver_get_dev_desc(usbmidi_driver_t *driver) {
 
 static void usbmidi_driver_get_config_desc(usbmidi_driver_t *driver) {
     const usb_config_desc_t *descriptor;
+    const usb_standard_desc_t *d;
+    int offset = 0;
+
+    const usb_intf_desc_t *interface = NULL;
+    const usb_ep_desc_t *data_in = NULL;
+    const usb_ep_desc_t *data_out = NULL;
 
     assert(driver->device != NULL);
     ESP_LOGI(TAG, "getting configuration descriptor");
     ESP_ERROR_CHECK(usb_host_get_active_config_descriptor(driver->device, &descriptor));
-    usb_print_config_descriptor(descriptor, NULL);
 
+    // scan all descriptors
+    for (d = (usb_standard_desc_t *) descriptor; d != NULL; d = usb_parse_next_descriptor(d, descriptor->wTotalLength, &offset)) {
+        switch (d->bDescriptorType) {
+            case USB_W_VALUE_DT_INTERFACE:;
+                const usb_intf_desc_t *i = (const usb_intf_desc_t *) d;
+
+                // validate the device class
+                if (i->bInterfaceClass != USB_CLASS_AUDIO) break;
+                if (i->bInterfaceSubClass != USB_SUBCLASS_MIDISTREAMING) break;
+
+                // mark this device as a midi device and reset the endpoints
+                interface = i;
+                data_in = NULL;
+                data_out = NULL;
+
+                break;
+            case USB_W_VALUE_DT_ENDPOINT:;
+                const usb_ep_desc_t *e = (const usb_ep_desc_t *) d;
+
+                // make sure bulk transfer is supported
+                if (!(e->bmAttributes & USB_TRANSFER_TYPE_BULK)) break;
+
+                // store the endpoints
+                if (e->bEndpointAddress & 0x80) {
+                    data_in = e;
+                } else {
+                    data_out = e;
+                }
+
+                break;
+            default:
+                break;
+        }
+    }
+
+    // check if we've got all the descriptors
+    if (!interface || !data_in || !data_out) {
+        ESP_LOGE(TAG, "not a valid MIDI device");
+        return;
+    }
     
+    // claim the interface
+    ESP_LOGI(TAG, "claiming interface");
+    ESP_ERROR_CHECK(usb_host_interface_claim(driver->client,
+        driver->device,
+        interface->bInterfaceNumber,
+        interface->bAlternateSetting));
 
-    // get the string descriptors next
-    //usbmidi_driver_add_event(driver, USBMIDI_EVENT_GET_STR_DESC);
+    // store the interface and create transfers for each endpoint
+    driver->interface = interface;
+
+    size_t data_in_size = MIN(data_in->wMaxPacketSize, USBMIDI_PACKET_SIZE);
+    ESP_ERROR_CHECK(usb_host_transfer_alloc(data_in_size, 0, &driver->data_in));
+    driver->data_in->callback = usbmidi_driver_data_in_callback;
+    driver->data_in->context = (void *) driver;
+    
+    size_t data_out_size = MIN(data_out->wMaxPacketSize, USBMIDI_PACKET_SIZE);
+    ESP_ERROR_CHECK(usb_host_transfer_alloc(data_out_size, 0, &driver->data_out));
+    driver->data_out->callback = usbmidi_driver_data_out_callback;
+    driver->data_out->context = (void *) driver;
+
+    ESP_LOGI(TAG, "midi device initialized (data in size: %d, data out size: %d)", data_in_size, data_out_size);
 }
 
 static void usbmidi_driver_get_str_desc(usbmidi_driver_t *driver) {
@@ -77,6 +151,25 @@ static void usbmidi_driver_get_str_desc(usbmidi_driver_t *driver) {
 }
 
 static void usbmidi_driver_close_dev(usbmidi_driver_t *driver) {
+    assert(driver->device != NULL);
+
+    // free the transfers
+    if (driver->data_in) {
+        usb_host_transfer_free(driver->data_in);
+        driver->data_in = NULL;
+    }
+    if (driver->data_out) {
+        usb_host_transfer_free(driver->data_out);
+        driver->data_out = NULL;
+    }
+
+    // release the interface
+    if (driver->interface) {
+        ESP_LOGI(TAG, "releasing interface");
+        usb_host_interface_release(driver->client, driver->device, driver->interface->bInterfaceNumber);
+        driver->interface = NULL;
+    }
+
     ESP_LOGI(TAG, "closing device 0x%02x", driver->device_address);
     ESP_ERROR_CHECK(usb_host_device_close(driver->client, driver->device));
 

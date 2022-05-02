@@ -48,12 +48,11 @@ esp_err_t channel_set_note(channel_t *channel, uint8_t note) {
 }
 
 esp_err_t channel_set_note_cents(channel_t *channel, uint16_t cents) {
-    uint16_t chan_vmax = 3300; // 10560;
+    uint16_t chan_vmax = 10560;
 
     // value = V / Vmax * DACmax, with V = cents * (1000/1200) mv per cent
     uint16_t value = (uint16_t) ((uint32_t) cents * (DAC_TOTAL_RESOLUTION - 1) * 1000 / 1200 / chan_vmax);
     if (value > DAC_TOTAL_RESOLUTION - 1) value = DAC_TOTAL_RESOLUTION - 1;
-    ESP_LOGI(TAG, "setting note to %d", value);
 
     return dac_set_value(&channel->dac, DAC_A, value);
 }

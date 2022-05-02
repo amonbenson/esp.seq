@@ -3,6 +3,7 @@
 #include <freertos/task.h>
 #include <esp_log.h>
 #include "dac.h"
+#include "usbmidi.h"
 #include "channel.h"
 
 
@@ -38,7 +39,9 @@ static channel_t channels[NUM_CHANNELS];
 
 
 void app_main(void) {
+    // initialize all components
     ESP_ERROR_CHECK(dac_global_init());
+    ESP_ERROR_CHECK(usbmidi_init());
 
     // create all channels
     for (int i = 0; i < NUM_CHANNELS; i++) {

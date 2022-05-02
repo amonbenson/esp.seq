@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include "dac.h"
 #include "usbmidi.h"
+#include "usbmidi_driver.h"
 #include "channel.h"
 
 
@@ -38,10 +39,23 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
 static channel_t channels[NUM_CHANNELS];
 
 
+void note_on_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
+    ESP_LOGI(TAG, "note on: channel %d, note %d, velocity %d", channel, note, velocity);
+}
+
+void note_off_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
+    ESP_LOGI(TAG, "note off: channel %d, note %d, velocity %d", channel, note, velocity);
+}
+
+
 void app_main(void) {
     // initialize all components
     ESP_ERROR_CHECK(dac_global_init());
     ESP_ERROR_CHECK(usbmidi_init());
+
+    // register midi callbacks
+    usbmidi_callbacks.note_on = note_on_callback;
+    usbmidi_callbacks.note_off = note_off_callback;
 
     // create all channels
     /* for (int i = 0; i < NUM_CHANNELS; i++) {

@@ -9,14 +9,105 @@
 
 static const char *TAG = "usbmidi_driver";
 
+usbmidi_callbacks_t usbmidi_callbacks = { 0 };
+
 
 static uint32_t usbmidi_driver_add_event(usbmidi_driver_t *driver, usbmidi_event_t event) {
     return xQueueSend(driver->events, &event, 0);
 }
 
+static void usbmidi_driver_handle_data_in(usbmidi_driver_t *driver, uint8_t *data, int len) {
+    if (len < 1) return;
+
+    uint8_t cn = data[0] >> 4;
+    uint8_t cin = data[0] & 0x0F;
+
+    uint8_t *message = data + 1;
+    int message_len = len - 1;
+
+    switch (cin) {
+        case USBMIDI_CIN_MISC:
+            ESP_LOGE(TAG, "misc messages unimplemented");
+            break;
+        case USBMIDI_CIN_CABLE_EVENT:
+            ESP_LOGE(TAG, "cable event messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSCOM_2:
+            if (message_len != USBMIDI_CIN_SYSCOM_2_LEN) return;
+            ESP_LOGE(TAG, "syscom 2 messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSCOM_3:
+            if (message_len != USBMIDI_CIN_SYSCOM_3_LEN) return;
+            ESP_LOGE(TAG, "syscom 3 messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSEX_START:
+            if (message_len != USBMIDI_CIN_SYSEX_START_LEN) return;
+            ESP_LOGE(TAG, "sysex start messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSEX_END_1_SYSCOM_1:
+            if (message_len != USBMIDI_CIN_SYSEX_END_1_SYSCOM_1_LEN) return;
+            ESP_LOGE(TAG, "sysex end 1 syscom 1 messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSEX_END_2:
+            if (message_len != USBMIDI_CIN_SYSEX_END_2_LEN) return;
+            ESP_LOGE(TAG, "sysex end 2 messages unimplemented");
+            break;
+        case USBMIDI_CIN_SYSEX_END_3:
+            if (message_len != USBMIDI_CIN_SYSEX_END_3_LEN) return;
+            ESP_LOGE(TAG, "sysex end 3 messages unimplemented");
+            break;
+        case USBMIDI_CIN_NOTE_OFF:
+            if (message_len != USBMIDI_CIN_NOTE_OFF_LEN) return;
+            if (usbmidi_callbacks.note_off) {
+                usbmidi_callbacks.note_off(message[0] & 0x0f, message[1], message[2]);
+            }
+            break;
+        case USBMIDI_CIN_NOTE_ON:
+            if (message_len != USBMIDI_CIN_NOTE_ON_LEN) return;
+            if (usbmidi_callbacks.note_on) {
+                usbmidi_callbacks.note_on(message[0] & 0x0f, message[1], message[2]);
+            }
+            break;
+        case USBMIDI_CIN_POLY_KEY_PRESSURE:
+            if (message_len != USBMIDI_CIN_POLY_KEY_PRESSURE_LEN) return;
+            ESP_LOGE(TAG, "poly key pressure messages unimplemented");
+            break;
+        case USBMIDI_CIN_CONTROL_CHANGE:
+            if (message_len != USBMIDI_CIN_CONTROL_CHANGE_LEN) return;
+            ESP_LOGE(TAG, "control change messages unimplemented");
+            break;
+        case USBMIDI_CIN_PROGRAM_CHANGE:
+            if (message_len != USBMIDI_CIN_PROGRAM_CHANGE_LEN) return;
+            ESP_LOGE(TAG, "program change messages unimplemented");
+            break;
+        case USBMIDI_CIN_CHANNEL_PRESSURE:
+            if (message_len != USBMIDI_CIN_CHANNEL_PRESSURE_LEN) return;
+            ESP_LOGE(TAG, "channel pressure messages unimplemented");
+            break;
+        case USBMIDI_CIN_PITCH_BEND:
+            if (message_len != USBMIDI_CIN_PITCH_BEND_LEN) return;
+            ESP_LOGE(TAG, "pitch bend messages unimplemented");
+            break;
+        case USBMIDI_CIN_BYTE:
+            if (message_len != USBMIDI_CIN_BYTE_LEN) return;
+            ESP_LOGE(TAG, "single byte messages unimplemented");
+            break;
+        default:
+            ESP_LOGE(TAG, "unknown code index number %d", cin);
+            break;
+    }
+}
+
 static void usbmidi_driver_data_in_callback(usb_transfer_t *transfer) {
     usbmidi_driver_t *driver = (usbmidi_driver_t *) transfer->context;
-    ESP_LOGI(TAG, "data in callback");
+
+    // handle the incoming data
+    usbmidi_driver_handle_data_in(driver, transfer->data_buffer, transfer->actual_num_bytes);
+
+    // continue polling
+    if (driver->data_in) {
+        ESP_ERROR_CHECK(usb_host_transfer_submit(driver->data_in));
+    }
 }
 
 static void usbmidi_driver_data_out_callback(usb_transfer_t *transfer) {
@@ -85,7 +176,7 @@ static void usbmidi_driver_get_config_desc(usbmidi_driver_t *driver) {
             case USB_W_VALUE_DT_ENDPOINT:;
                 const usb_ep_desc_t *e = (const usb_ep_desc_t *) d;
 
-                // make sure bulk transfer is supported
+                // only bulk transfer is supported
                 if (!(e->bmAttributes & USB_TRANSFER_TYPE_BULK)) break;
 
                 // store the endpoints
@@ -117,15 +208,23 @@ static void usbmidi_driver_get_config_desc(usbmidi_driver_t *driver) {
     // store the interface and create transfers for each endpoint
     driver->interface = interface;
 
-    size_t data_in_size = MIN(data_in->wMaxPacketSize, USBMIDI_PACKET_SIZE);
+    size_t data_in_size = MIN(USB_EP_DESC_GET_MPS(data_in), USBMIDI_PACKET_SIZE);
     ESP_ERROR_CHECK(usb_host_transfer_alloc(data_in_size, 0, &driver->data_in));
+    driver->data_in->device_handle = driver->device;
+    driver->data_in->bEndpointAddress = data_in->bEndpointAddress;
     driver->data_in->callback = usbmidi_driver_data_in_callback;
     driver->data_in->context = (void *) driver;
+    driver->data_in->num_bytes = data_in_size;
     
-    size_t data_out_size = MIN(data_out->wMaxPacketSize, USBMIDI_PACKET_SIZE);
+    size_t data_out_size = MIN(USB_EP_DESC_GET_MPS(data_out), USBMIDI_PACKET_SIZE);
     ESP_ERROR_CHECK(usb_host_transfer_alloc(data_out_size, 0, &driver->data_out));
+    driver->data_out->device_handle = driver->device;
+    driver->data_out->bEndpointAddress = data_out->bEndpointAddress;
     driver->data_out->callback = usbmidi_driver_data_out_callback;
     driver->data_out->context = (void *) driver;
+
+    // start input polling
+    ESP_ERROR_CHECK(usb_host_transfer_submit(driver->data_in));
 
     ESP_LOGI(TAG, "midi device initialized (data in size: %d, data out size: %d)", data_in_size, data_out_size);
 }

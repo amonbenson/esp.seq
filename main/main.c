@@ -40,39 +40,12 @@ static channel_t channels[NUM_CHANNELS];
 void app_main(void) {
     ESP_ERROR_CHECK(dac_global_init());
 
-    /* dac_t dac;
-    const dac_config_t dac_config = {
-        .cs_pin = GPIO_NUM_1
-    };
-    
-    if (dac_create(&dac_config, &dac) != ESP_OK) {
-        ESP_LOGE(TAG, "failed to create dac");
-        return;
-    }
-
-    int i = 0;
-    while (1) {
-        for (; i < 1000; i++) {
-            dac_set_value_mapped(&dac, DAC_A, i, 1000);
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
-        for (; i >= 0; i--) {
-            dac_set_value_mapped(&dac, DAC_A, i, 1000);
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
-    } */
-
     // create all channels
     for (int i = 0; i < NUM_CHANNELS; i++) {
-        ESP_ERROR_CHECK(channel_create(&channel_configs[i], &channels[i]));
+        ESP_ERROR_CHECK(channel_init(&channel_configs[i], &channels[i]));
     }
 
-    while (1) {
-        ESP_ERROR_CHECK(dac_set_value_mapped(&channels[0].dac, DAC_A, 70, 100));
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        ESP_ERROR_CHECK(dac_set_value_mapped(&channels[0].dac, DAC_A, 90, 100));
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+    channel_set_note(&channels[0], 30);
 
-   vTaskDelete(NULL);
+    vTaskDelete(NULL);
 }

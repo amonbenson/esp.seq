@@ -17,4 +17,10 @@ typedef struct {
 } channel_t;
 
 
-esp_err_t channel_create(const channel_config_t *config, channel_t *channel);
+esp_err_t channel_init(const channel_config_t *config, channel_t *channel);
+
+esp_err_t channel_set_note(channel_t *channel, uint8_t note);
+esp_err_t channel_set_note_cents(channel_t *channel, uint16_t cents);
+esp_err_t channel_set_velocity(channel_t *channel, uint8_t velocity);
+esp_err_t channel_set_gate(channel_t *channel, bool gate);
+esp_err_t channel_set_trigger(channel_t *channel, bool trigger);

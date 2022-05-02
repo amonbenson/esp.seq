@@ -74,7 +74,7 @@ esp_err_t dac_global_init() {
     return ESP_OK;
 }
 
-esp_err_t dac_create(const dac_config_t *config, dac_t *dac) {
+esp_err_t dac_init(const dac_config_t *config, dac_t *dac) {
     esp_err_t err;
 
     // find an empty slot
@@ -109,14 +109,6 @@ esp_err_t dac_create(const dac_config_t *config, dac_t *dac) {
 
     // add the dac to the list so that the timer callback can update it
     dac_list[dac_index] = dac;
-
-    return ESP_OK;
-}
-
-esp_err_t dac_set_value_mapped(dac_t *dac, dac_channel_t channel, uint32_t value, uint32_t max) {
-    // scale the value to the total resolution
-    value = value * DAC_TOTAL_RESOLUTION / max;
-    dac_set_value(dac, channel, value);
 
     return ESP_OK;
 }

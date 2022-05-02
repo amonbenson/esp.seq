@@ -14,10 +14,11 @@ static esp_err_t channel_gpio_config(gpio_num_t pin) {
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE
     };
+
     return gpio_config(&config);
 }
 
-esp_err_t channel_create(const channel_config_t *config, channel_t *channel) {
+esp_err_t channel_init(const channel_config_t *config, channel_t *channel) {
     esp_err_t err;
 
     // store the config
@@ -36,8 +37,36 @@ esp_err_t channel_create(const channel_config_t *config, channel_t *channel) {
     const dac_config_t dac_config = {
         .cs_pin = config->dac_pin
     };
-    err = dac_create(&dac_config, &channel->dac);
+    err = dac_init(&dac_config, &channel->dac);
     if (err != ESP_OK) return err;
 
     return ESP_OK;
+}
+
+esp_err_t channel_set_note(channel_t *channel, uint8_t note) {
+    return channel_set_note_cents(channel, (uint16_t) note * 100);
+}
+
+esp_err_t channel_set_note_cents(channel_t *channel, uint16_t cents) {
+    uint16_t chan_vmax = 3300; // 10560;
+
+    // value = V / Vmax * DACmax, with V = cents * (1000/1200) mv per cent
+    uint16_t value = (uint16_t) ((uint32_t) cents * (DAC_TOTAL_RESOLUTION - 1) * 1000 / 1200 / chan_vmax);
+    if (value > DAC_TOTAL_RESOLUTION - 1) value = DAC_TOTAL_RESOLUTION - 1;
+    ESP_LOGI(TAG, "setting note to %d", value);
+
+    return dac_set_value(&channel->dac, DAC_A, value);
+}
+
+esp_err_t channel_set_velocity(channel_t *channel, uint8_t velocity) {
+    uint16_t value = (uint16_t) velocity * (DAC_TOTAL_RESOLUTION - 1) / 127;
+    return dac_set_value(&channel->dac, DAC_B, value);
+}
+
+esp_err_t channel_set_gate(channel_t *channel, bool gate) {
+    return gpio_set_level(channel->config.gate_pin, gate);
+}
+
+esp_err_t channel_set_trigger(channel_t *channel, bool trigger) {
+    return gpio_set_level(channel->config.trigger_pin, trigger);
 }

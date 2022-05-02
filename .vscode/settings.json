@@ -1,12 +1,12 @@
 {
   "C_Cpp.intelliSenseEngine": "Tag Parser",
-  "idf.portWin": "COM5",
+  "idf.portWin": "COM6",
   "idf.adapterTargetName": "esp32s2",
   "idf.openOcdConfigs": [
     "interface/ftdi/esp32_devkitj_v1.cfg",
     "target/esp32s2.cfg"
   ],
-  "idf.flashType": "DFU",
+  "idf.flashType": "UART",
   "files.associations": {
     "*.c": "c",
     "*.lds": "linkerscript",

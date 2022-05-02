@@ -68,9 +68,7 @@ typedef struct {
 
 esp_err_t dac_global_init();
 
-esp_err_t dac_create(const dac_config_t *config, dac_t *dac);
-
-esp_err_t dac_set_value_mapped(dac_t *dac, dac_channel_t channel, uint32_t value, uint32_t max);
+esp_err_t dac_init(const dac_config_t *config, dac_t *dac);
 
 esp_err_t dac_set_value(dac_t *dac, dac_channel_t channel, uint32_t value);
 

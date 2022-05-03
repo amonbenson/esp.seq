@@ -39,9 +39,9 @@ static void usb_midi_sysex_parse(usb_midi_t *usb_midi, uint8_t *data, size_t len
 static void usb_midi_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, int len) {
     usb_midi_callbacks_t *callbacks = &usb_midi->config.callbacks;
 
-    /* printf("raw data in: ");
+    printf("raw data in: ");
     for (int i = 0; i < len; i++) printf("%02x ", data[i]);
-    printf("\n"); */
+    printf("\n");
 
     // validate mininum length
     if (len < 1) return;
@@ -392,4 +392,37 @@ esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
     usb_midi->driver_config.arg = (void *) usb_midi;
 
     return ESP_OK;
+}
+
+static esp_err_t usb_midi_send_short_message(usb_midi_t *usb_midi, uint8_t command, uint8_t channel, uint8_t data1, uint8_t data2) {
+    if (command < 0x08 || command > 0x0F) return ESP_ERR_INVALID_ARG;
+    if (channel > 0x0F) return ESP_ERR_INVALID_ARG;
+    if (data1 > 0x7F) return ESP_ERR_INVALID_ARG;
+    if (data2 > 0x7F) return ESP_ERR_INVALID_ARG;
+
+    // write the message
+    uint8_t *buffer = usb_midi->data_out->data_buffer;
+    uint8_t cn = 0; // TODO choose correct cable number
+    buffer[0] = cn << 4 | command; // cable number + cid (command)
+    buffer[1] = command << 4 | channel; // midi command + channel
+    buffer[2] = data1;
+    buffer[3] = data2;
+
+    // submit the transfer
+    usb_midi->data_out->num_bytes = 4;
+    usb_midi->data_out->timeout_ms = 10000;
+
+    /* printf("raw data out: ");
+    for (int i = 0; i < usb_midi->data_out->num_bytes; i++) printf("%02x ", usb_midi->data_out->data_buffer[i]);
+    printf("\n"); */
+
+    return usb_host_transfer_submit(usb_midi->data_out);
+}
+
+esp_err_t usb_midi_send_note_off(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity) {
+    return usb_midi_send_short_message(usb_midi, 0x08, channel, note, velocity);
+}
+
+esp_err_t usb_midi_send_note_on(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity) {
+    return usb_midi_send_short_message(usb_midi, 0x09, channel, note, velocity);
 }

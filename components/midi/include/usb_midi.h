@@ -90,3 +90,7 @@ typedef struct {
 void usb_midi_driver_task(void *arg);
 
 esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi);
+
+esp_err_t usb_midi_send_note_off(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity);
+
+esp_err_t usb_midi_send_note_on(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity);

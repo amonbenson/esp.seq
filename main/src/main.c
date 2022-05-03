@@ -54,10 +54,16 @@ void sysex_callback(const uint8_t *data, size_t length) {
 
 void note_on_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
     ESP_LOGI(TAG, "note on: channel %d, note %d, velocity %d", channel, note, velocity);
+
+    // echo
+    usb_midi_send_note_on(&usb_midi, channel, note, velocity);
 }
 
 void note_off_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
     ESP_LOGI(TAG, "note off: channel %d, note %d, velocity %d", channel, note, velocity);
+
+    // echo
+    usb_midi_send_note_off(&usb_midi, channel, note, velocity);
 }
 
 void poly_key_pressure_callback(uint8_t channel, uint8_t note, uint8_t pressure) {

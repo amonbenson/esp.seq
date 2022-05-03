@@ -15,40 +15,39 @@
 static const char *TAG = "usb_midi";
 
 
-static esp_err_t usb_midi_sysex_store(usb_midi_t *usb_midi, uint8_t *data, size_t len) {
-    // check if we have enough space
-    size_t actual_len = MIN(len, USB_MIDI_SYSEX_BUFFER_SIZE - usb_midi->sysex_len);
-
-    // copy as much data as we can
-    memcpy(usb_midi->sysex_buffer + usb_midi->sysex_len, data, actual_len);
-    usb_midi->sysex_len += actual_len;
-
-    /* for (size_t i = 0; i < actual_len; i++) {
-        printf("%02x ", data[i]);
-    }
-    printf("\n"); */
-
-    if (actual_len < len) {
-        ESP_LOGW(TAG, "sysex buffer full");
-        return ESP_ERR_NO_MEM;
-    } else {
-        return ESP_OK;
-    }
-}
-
 static void usb_midi_sysex_reset(usb_midi_t *usb_midi) {
     // clear the buffer by resetting the length
     usb_midi->sysex_len = 0;
 }
 
+static void usb_midi_sysex_parse(usb_midi_t *usb_midi, uint8_t *data, size_t len) {
+    for (size_t i = 0; i < len && usb_midi->sysex_len < USB_MIDI_SYSEX_MAX_LEN; i++, usb_midi->sysex_len++) {
+        // store the incoming byte
+        usb_midi->sysex_buffer[usb_midi->sysex_len] = data[i];
+
+        // if we've reached the stop byte, invoke the callback
+        if (data[i] == 0xf7) {
+            USB_MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks,
+                sysex,
+                usb_midi->sysex_buffer,
+                usb_midi->sysex_len);
+            usb_midi_sysex_reset(usb_midi);
+        }
+    }
+}
+
 static void usb_midi_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, int len) {
     usb_midi_callbacks_t *callbacks = &usb_midi->config.callbacks;
+
+    /* printf("raw data in: ");
+    for (int i = 0; i < len; i++) printf("%02x ", data[i]);
+    printf("\n"); */
 
     // validate mininum length
     if (len < 1) return;
 
     // get cable number and code index number
-    uint8_t cn = data[0] >> 4;
+    //uint8_t cn = data[0] >> 4;
     uint8_t cin = data[0] & 0x0F;
 
     // extract the midi message and length
@@ -58,82 +57,103 @@ static void usb_midi_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, int len
     switch (cin) {
         case USB_MIDI_CIN_MISC:
             ESP_LOGE(TAG, "misc messages unimplemented");
+
             break;
         case USB_MIDI_CIN_CABLE_EVENT:
             ESP_LOGE(TAG, "cable event messages unimplemented");
+
             break;
         case USB_MIDI_CIN_SYSCOM_2:
             if (msg_len < USB_MIDI_CIN_SYSCOM_2_LEN) return;
+
             ESP_LOGE(TAG, "syscom 2 messages unimplemented");
+
             break;
         case USB_MIDI_CIN_SYSCOM_3:
             if (msg_len < USB_MIDI_CIN_SYSCOM_3_LEN) return;
+
             ESP_LOGE(TAG, "syscom 3 messages unimplemented");
+
             break;
         case USB_MIDI_CIN_SYSEX_START:
             if (msg_len < USB_MIDI_CIN_SYSEX_START_LEN) return;
 
-            usb_midi_sysex_store(usb_midi, msg, 3);
-            
+            usb_midi_sysex_parse(usb_midi, msg, msg_len);
+
             break;
         case USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1_LEN) return;
 
-            usb_midi_sysex_store(usb_midi, msg, 1);
-            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_parse(usb_midi, msg, 1);
             usb_midi_sysex_reset(usb_midi);
 
             break;
         case USB_MIDI_CIN_SYSEX_END_2:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_2_LEN) return;
 
-            usb_midi_sysex_store(usb_midi, msg, 2);
-            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_parse(usb_midi, msg, 2);
             usb_midi_sysex_reset(usb_midi);
 
             break;
         case USB_MIDI_CIN_SYSEX_END_3:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_3_LEN) return;
 
-            usb_midi_sysex_store(usb_midi, msg, 3);
-            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_parse(usb_midi, msg, 3);
             usb_midi_sysex_reset(usb_midi);
 
             break;
         case USB_MIDI_CIN_NOTE_OFF:
             if (msg_len < USB_MIDI_CIN_NOTE_OFF_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, note_off, msg[0] & 0x0f, msg[1], msg[2]);
+
             break;
         case USB_MIDI_CIN_NOTE_ON:
             if (msg_len < USB_MIDI_CIN_NOTE_ON_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, note_on, msg[0] & 0x0f, msg[1], msg[2]);
+
             break;
         case USB_MIDI_CIN_POLY_KEY_PRESSURE:
             if (msg_len < USB_MIDI_CIN_POLY_KEY_PRESSURE_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, poly_key_pressure, msg[0] & 0x0f, msg[1], msg[2]);
+
             break;
         case USB_MIDI_CIN_CONTROL_CHANGE:
             if (msg_len < USB_MIDI_CIN_CONTROL_CHANGE_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, control_change, msg[0] & 0x0f, msg[1], msg[2]);
+
             break;
         case USB_MIDI_CIN_PROGRAM_CHANGE:
             if (msg_len < USB_MIDI_CIN_PROGRAM_CHANGE_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, program_change, msg[0] & 0x0f, msg[1]);
+
             break;
         case USB_MIDI_CIN_CHANNEL_PRESSURE:
             if (msg_len < USB_MIDI_CIN_CHANNEL_PRESSURE_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, channel_pressure, msg[0] & 0x0f, msg[1]);
+
             break;
         case USB_MIDI_CIN_PITCH_BEND:
             if (msg_len < USB_MIDI_CIN_PITCH_BEND_LEN) return;
+
             USB_MIDI_INVOKE_CALLBACK(callbacks, pitch_bend, msg[0] & 0x0f, (msg[1] | msg[2] << 7) - 8192);
+
             break;
         case USB_MIDI_CIN_BYTE:
             if (msg_len < USB_MIDI_CIN_BYTE_LEN) return;
+
             ESP_LOGE(TAG, "single byte messages unimplemented");
+
             break;
         default:
+
             ESP_LOGE(TAG, "unknown code index number %d", cin);
+
             break;
     }
 }
@@ -153,7 +173,7 @@ static void usb_midi_data_in_callback(usb_transfer_t *transfer) {
 }
 
 static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
-    usb_midi_t *usb_midi = (usb_midi_t *) transfer->context;
+    //usb_midi_t *usb_midi = (usb_midi_t *) transfer->context;
     ESP_LOGI(TAG, "data out callback");
 }
 
@@ -242,7 +262,7 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     // store the interface and create transfers for each endpoint
     usb_midi->interface = interface;
 
-    size_t data_in_size = MIN(USB_EP_DESC_GET_MPS(data_in), USB_MIDI_PACKET_SIZE);
+    size_t data_in_size = USB_MIDI_PACKET_MAX_LEN;
     err = usb_host_transfer_alloc(data_in_size, 0, &usb_midi->data_in);
     if (err != ESP_OK) return err;
 
@@ -252,7 +272,7 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     usb_midi->data_in->context = (void *) usb_midi;
     usb_midi->data_in->num_bytes = data_in_size;
     
-    size_t data_out_size = MIN(USB_EP_DESC_GET_MPS(data_out), USB_MIDI_PACKET_SIZE);
+    size_t data_out_size = USB_MIDI_PACKET_MAX_LEN;
     err = usb_host_transfer_alloc(data_out_size, 0, &usb_midi->data_out);
     if (err != ESP_OK) return err;
 

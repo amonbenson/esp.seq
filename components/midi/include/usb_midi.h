@@ -6,8 +6,8 @@
 
 #define USB_SUBCLASS_MIDISTREAMING 0x03
 
-#define USB_MIDI_PACKET_SIZE 64
-#define USB_MIDI_SYSEX_BUFFER_SIZE 256
+#define USB_MIDI_PACKET_MAX_LEN 64
+#define USB_MIDI_SYSEX_MAX_LEN 256
 
 #define USB_MIDI_CIN_MISC 0x0
 #define USB_MIDI_CIN_CABLE_EVENT 0x1
@@ -82,7 +82,7 @@ typedef struct {
     usb_transfer_t *data_in;
     usb_transfer_t *data_out;
 
-    uint8_t sysex_buffer[USB_MIDI_SYSEX_BUFFER_SIZE];
+    uint8_t sysex_buffer[USB_MIDI_SYSEX_MAX_LEN];
     size_t sysex_len;
 } usb_midi_t;
 

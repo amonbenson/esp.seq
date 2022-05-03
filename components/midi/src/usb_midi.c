@@ -74,23 +74,23 @@ static void usbmidi_driver_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, i
             break;
         case USBMIDI_CIN_POLY_KEY_PRESSURE:
             if (msg_len < USBMIDI_CIN_POLY_KEY_PRESSURE_LEN) return;
-            ESP_LOGE(TAG, "poly key pressure messages unimplemented");
+            USB_MIDI_INVOKE_CALLBACK(callbacks, poly_key_pressure, msg[0] & 0x0f, msg[1], msg[2]);
             break;
         case USBMIDI_CIN_CONTROL_CHANGE:
             if (msg_len < USBMIDI_CIN_CONTROL_CHANGE_LEN) return;
-            ESP_LOGE(TAG, "control change messages unimplemented");
+            USB_MIDI_INVOKE_CALLBACK(callbacks, control_change, msg[0] & 0x0f, msg[1], msg[2]);
             break;
         case USBMIDI_CIN_PROGRAM_CHANGE:
             if (msg_len < USBMIDI_CIN_PROGRAM_CHANGE_LEN) return;
-            ESP_LOGE(TAG, "program change messages unimplemented");
+            USB_MIDI_INVOKE_CALLBACK(callbacks, program_change, msg[0] & 0x0f, msg[1]);
             break;
         case USBMIDI_CIN_CHANNEL_PRESSURE:
             if (msg_len < USBMIDI_CIN_CHANNEL_PRESSURE_LEN) return;
-            ESP_LOGE(TAG, "channel pressure messages unimplemented");
+            USB_MIDI_INVOKE_CALLBACK(callbacks, channel_pressure, msg[0] & 0x0f, msg[1]);
             break;
         case USBMIDI_CIN_PITCH_BEND:
             if (msg_len < USBMIDI_CIN_PITCH_BEND_LEN) return;
-            ESP_LOGE(TAG, "pitch bend messages unimplemented");
+            USB_MIDI_INVOKE_CALLBACK(callbacks, pitch_bend, msg[0] & 0x0f, (msg[1] | msg[2] << 7) - 8192);
             break;
         case USBMIDI_CIN_BYTE:
             if (msg_len < USBMIDI_CIN_BYTE_LEN) return;

@@ -55,12 +55,22 @@ typedef void (*usb_midi_device_connected_callback_t)(usb_device_desc_t *device_d
 typedef void (*usb_midi_device_disconnected_callback_t)(usb_device_desc_t *device_descriptor);
 typedef void (*usb_midi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 typedef void (*usb_midi_note_off_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
+typedef void (*usb_midi_poly_key_pressure_callback_t)(uint8_t channel, uint8_t note, uint8_t pressure);
+typedef void (*usb_midi_control_change_callback_t)(uint8_t channel, uint8_t control, uint8_t value);
+typedef void (*usb_midi_program_change_callback_t)(uint8_t channel, uint8_t program);
+typedef void (*usb_midi_channel_pressure_callback_t)(uint8_t channel, uint8_t pressure);
+typedef void (*usb_midi_pitch_bend_callback_t)(uint8_t channel, int16_t value);
 
 typedef struct {
     usb_midi_device_connected_callback_t connected;
     usb_midi_device_disconnected_callback_t disconnected;
     usb_midi_note_on_callback_t note_on;
     usb_midi_note_off_callback_t note_off;
+    usb_midi_poly_key_pressure_callback_t poly_key_pressure;
+    usb_midi_control_change_callback_t control_change;
+    usb_midi_program_change_callback_t program_change;
+    usb_midi_channel_pressure_callback_t channel_pressure;
+    usb_midi_pitch_bend_callback_t pitch_bend;
 } usb_midi_callbacks_t;
 
 typedef struct {

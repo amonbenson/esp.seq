@@ -104,9 +104,11 @@ static void usbmidi_driver_data_in_callback(usb_transfer_t *transfer) {
     // handle the incoming data
     usbmidi_driver_handle_data_in(driver, transfer->data_buffer, transfer->actual_num_bytes);
 
-    // continue polling
-    if (driver->data_in) {
-        ESP_ERROR_CHECK(usb_host_transfer_submit(driver->data_in));
+    // continue polling if the device hasn't been closed yet
+    // usb_host_transfer_submit might return an invalid state error,
+    // if the device has already disconnected, we can ignore that
+    if (driver->device) {
+        usb_host_transfer_submit(driver->data_in);
     }
 }
 

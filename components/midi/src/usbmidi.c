@@ -1,7 +1,6 @@
 #include "usbmidi.h"
 #include <freertos/task.h>
 #include <esp_log.h>
-#include "usbmidi_driver.h"
 
 
 static const char *TAG = "usbmidi";
@@ -32,7 +31,7 @@ static void usbmidi_daemon_task() {
     vTaskDelete(NULL);
 }
 
-esp_err_t usbmidi_init() {
+esp_err_t usbmidi_init(const usb_driver_config_t *driver) {
     esp_err_t err;
     TaskHandle_t usbmidi_daemon;
     TaskHandle_t usbmidi_driver;
@@ -46,9 +45,9 @@ esp_err_t usbmidi_init() {
     err = usb_host_install(&host_config);
     if (err != ESP_OK) return err;
 
-    // start the daemon task
+    // start the daemon and driver tasks
     xTaskCreatePinnedToCore(usbmidi_daemon_task, "usbmidi_daemon", 4096, NULL, 2, &usbmidi_daemon, 0);
-    xTaskCreatePinnedToCore(usbmidi_driver_task, "usbmidi_driver", 4096, NULL, 3, &usbmidi_driver, 0);
+    xTaskCreatePinnedToCore(driver->task, "usbmidi_driver", 4096, (void *) driver->arg, 3, &usbmidi_driver, 0);
 
     return ESP_OK;
 }

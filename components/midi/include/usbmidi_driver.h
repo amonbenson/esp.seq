@@ -2,6 +2,7 @@
 
 #include <usb/usb_host.h>
 #include <freertos/queue.h>
+#include "usbmidi.h"
 
 
 #define USB_SUBCLASS_MIDISTREAMING 0x03
@@ -50,17 +51,25 @@ typedef enum {
     USBMIDI_EVENT_GET_STR_DESC
 } usbmidi_event_t;
 
+typedef void (*usbmidi_device_connected_callback_t)(void);
+typedef void (*usbmidi_device_disconnected_callback_t)(void);
 typedef void (*usbmidi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 typedef void (*usbmidi_note_off_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 
 typedef struct {
+    usbmidi_device_connected_callback_t connected;
+    usbmidi_device_disconnected_callback_t disconnected;
     usbmidi_note_on_callback_t note_on;
     usbmidi_note_off_callback_t note_off;
 } usbmidi_callbacks_t;
 
-extern usbmidi_callbacks_t usbmidi_callbacks;
+typedef struct {
+    usbmidi_callbacks_t callbacks;
+} usbmidi_driver_config_t;
 
 typedef struct {
+    usb_driver_config_t super;
+    usbmidi_driver_config_t config;
     QueueHandle_t events;
 
     usb_host_client_handle_t client;
@@ -75,3 +84,5 @@ typedef struct {
 
 
 void usbmidi_driver_task(void *arg);
+
+esp_err_t usbmidi_driver_init(const usbmidi_driver_config_t *config, usbmidi_driver_t *driver);

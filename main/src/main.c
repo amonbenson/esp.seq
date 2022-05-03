@@ -36,6 +36,7 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
     }
 };
 
+static usbmidi_driver_t usbmidi_driver;
 static channel_t channels[NUM_CHANNELS];
 
 
@@ -49,13 +50,18 @@ void note_off_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 
 void app_main(void) {
-    // initialize all components
+    // initialize the dac
     ESP_ERROR_CHECK(dac_global_init());
-    ESP_ERROR_CHECK(usbmidi_init());
 
-    // register midi callbacks
-    usbmidi_callbacks.note_on = note_on_callback;
-    usbmidi_callbacks.note_off = note_off_callback;
+    // initialize the usb interface
+    const usbmidi_driver_config_t usbmidi_config = {
+        .callbacks = {
+            .note_on = note_on_callback,
+            .note_off = note_off_callback
+        }
+    };
+    ESP_ERROR_CHECK(usbmidi_driver_init(&usbmidi_config, &usbmidi_driver));
+    ESP_ERROR_CHECK(usbmidi_init(&usbmidi_driver.super));
 
     // create all channels
     /* for (int i = 0; i < NUM_CHANNELS; i++) {

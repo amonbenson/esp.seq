@@ -3,8 +3,8 @@
 #include <freertos/task.h>
 #include <esp_log.h>
 #include "dac.h"
-#include "usbmidi.h"
-#include "usbmidi_driver.h"
+#include "usb.h"
+#include "usb_midi.h"
 #include "channel.h"
 
 
@@ -36,9 +36,17 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
     }
 };
 
-static usbmidi_driver_t usbmidi_driver;
+static usb_midi_t usb_midi;
 static channel_t channels[NUM_CHANNELS];
 
+
+void connected_callback(usb_device_desc_t *device_descriptor) {
+    ESP_LOGI(TAG, "connected (vid: 0x%04x, pid: 0x%04x)", device_descriptor->idVendor, device_descriptor->idProduct);
+}
+
+void disconnected_callback(usb_device_desc_t *device_descriptor) {
+    ESP_LOGI(TAG, "disconnected (vid: 0x%04x, pid: 0x%04x)", device_descriptor->idVendor, device_descriptor->idProduct);
+}
 
 void note_on_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
     ESP_LOGI(TAG, "note on: channel %d, note %d, velocity %d", channel, note, velocity);
@@ -54,14 +62,16 @@ void app_main(void) {
     ESP_ERROR_CHECK(dac_global_init());
 
     // initialize the usb interface
-    const usbmidi_driver_config_t usbmidi_config = {
+    const usb_midi_config_t usb_midi_config = {
         .callbacks = {
+            .connected = connected_callback,
+            .disconnected = disconnected_callback,
             .note_on = note_on_callback,
             .note_off = note_off_callback
         }
     };
-    ESP_ERROR_CHECK(usbmidi_driver_init(&usbmidi_config, &usbmidi_driver));
-    ESP_ERROR_CHECK(usbmidi_init(&usbmidi_driver.super));
+    ESP_ERROR_CHECK(usb_midi_init(&usb_midi_config, &usb_midi));
+    ESP_ERROR_CHECK(usb_init(&usb_midi.driver_config));
 
     // create all channels
     /* for (int i = 0; i < NUM_CHANNELS; i++) {

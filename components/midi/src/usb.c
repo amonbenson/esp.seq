@@ -1,12 +1,12 @@
-#include "usbmidi.h"
+#include "usb.h"
 #include <freertos/task.h>
 #include <esp_log.h>
 
 
-static const char *TAG = "usbmidi";
+static const char *TAG = "usb";
 
 
-static void usbmidi_daemon_task() {
+static void usb_daemon_task() {
     bool has_clients = true;
     bool has_devices = true;
     uint32_t event_flags;
@@ -31,10 +31,10 @@ static void usbmidi_daemon_task() {
     vTaskDelete(NULL);
 }
 
-esp_err_t usbmidi_init(const usb_driver_config_t *driver) {
+esp_err_t usb_init(const usb_driver_config_t *driver) {
     esp_err_t err;
-    TaskHandle_t usbmidi_daemon;
-    TaskHandle_t usbmidi_driver;
+    TaskHandle_t daemon_task;
+    TaskHandle_t driver_task;
 
     // init usb
     ESP_LOGI(TAG, "initializing usb host stack");
@@ -46,8 +46,8 @@ esp_err_t usbmidi_init(const usb_driver_config_t *driver) {
     if (err != ESP_OK) return err;
 
     // start the daemon and driver tasks
-    xTaskCreatePinnedToCore(usbmidi_daemon_task, "usbmidi_daemon", 4096, NULL, 2, &usbmidi_daemon, 0);
-    xTaskCreatePinnedToCore(driver->task, "usbmidi_driver", 4096, (void *) driver->arg, 3, &usbmidi_driver, 0);
+    xTaskCreatePinnedToCore(usb_daemon_task, "usb_daemon", 4096, NULL, 2, &daemon_task, 0);
+    xTaskCreatePinnedToCore(driver->task, "usb_driver", 4096, (void *) driver->arg, 3, &driver_task, 0);
 
     return ESP_OK;
 }

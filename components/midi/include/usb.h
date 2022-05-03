@@ -9,4 +9,4 @@ typedef struct {
 } usb_driver_config_t;
 
 
-esp_err_t usbmidi_init(const usb_driver_config_t *driver);
+esp_err_t usb_init(const usb_driver_config_t *driver);

@@ -2,7 +2,7 @@
 
 #include <usb/usb_host.h>
 #include <freertos/queue.h>
-#include "usbmidi.h"
+#include "usb.h"
 
 
 #define USB_SUBCLASS_MIDISTREAMING 0x03
@@ -49,27 +49,27 @@ typedef enum {
     USBMIDI_EVENT_GET_DEV_DESC,
     USBMIDI_EVENT_GET_CONFIG_DESC,
     USBMIDI_EVENT_GET_STR_DESC
-} usbmidi_event_t;
+} usb_midi_event_t;
 
-typedef void (*usbmidi_device_connected_callback_t)(void);
-typedef void (*usbmidi_device_disconnected_callback_t)(void);
-typedef void (*usbmidi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
-typedef void (*usbmidi_note_off_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
-
-typedef struct {
-    usbmidi_device_connected_callback_t connected;
-    usbmidi_device_disconnected_callback_t disconnected;
-    usbmidi_note_on_callback_t note_on;
-    usbmidi_note_off_callback_t note_off;
-} usbmidi_callbacks_t;
+typedef void (*usb_midi_device_connected_callback_t)(usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_device_disconnected_callback_t)(usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
+typedef void (*usb_midi_note_off_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 
 typedef struct {
-    usbmidi_callbacks_t callbacks;
-} usbmidi_driver_config_t;
+    usb_midi_device_connected_callback_t connected;
+    usb_midi_device_disconnected_callback_t disconnected;
+    usb_midi_note_on_callback_t note_on;
+    usb_midi_note_off_callback_t note_off;
+} usb_midi_callbacks_t;
 
 typedef struct {
-    usb_driver_config_t super;
-    usbmidi_driver_config_t config;
+    usb_midi_callbacks_t callbacks;
+} usb_midi_config_t;
+
+typedef struct {
+    usb_driver_config_t driver_config;
+    usb_midi_config_t config;
     QueueHandle_t events;
 
     usb_host_client_handle_t client;
@@ -80,9 +80,9 @@ typedef struct {
     const usb_intf_desc_t *interface;
     usb_transfer_t *data_in;
     usb_transfer_t *data_out;
-} usbmidi_driver_t;
+} usb_midi_t;
 
 
-void usbmidi_driver_task(void *arg);
+void usb_midi_driver_task(void *arg);
 
-esp_err_t usbmidi_driver_init(const usbmidi_driver_config_t *config, usbmidi_driver_t *driver);
+esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi);

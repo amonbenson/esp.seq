@@ -15,6 +15,32 @@
 static const char *TAG = "usb_midi";
 
 
+static esp_err_t usb_midi_sysex_store(usb_midi_t *usb_midi, uint8_t *data, size_t len) {
+    // check if we have enough space
+    size_t actual_len = MIN(len, USB_MIDI_SYSEX_BUFFER_SIZE - usb_midi->sysex_len);
+
+    // copy as much data as we can
+    memcpy(usb_midi->sysex_buffer + usb_midi->sysex_len, data, actual_len);
+    usb_midi->sysex_len += actual_len;
+
+    /* for (size_t i = 0; i < actual_len; i++) {
+        printf("%02x ", data[i]);
+    }
+    printf("\n"); */
+
+    if (actual_len < len) {
+        ESP_LOGW(TAG, "sysex buffer full");
+        return ESP_ERR_NO_MEM;
+    } else {
+        return ESP_OK;
+    }
+}
+
+static void usb_midi_sysex_reset(usb_midi_t *usb_midi) {
+    // clear the buffer by resetting the length
+    usb_midi->sysex_len = 0;
+}
+
 static void usb_midi_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, int len) {
     usb_midi_callbacks_t *callbacks = &usb_midi->config.callbacks;
 
@@ -46,19 +72,33 @@ static void usb_midi_handle_data_in(usb_midi_t *usb_midi, uint8_t *data, int len
             break;
         case USB_MIDI_CIN_SYSEX_START:
             if (msg_len < USB_MIDI_CIN_SYSEX_START_LEN) return;
-            ESP_LOGE(TAG, "sysex start messages unimplemented");
+
+            usb_midi_sysex_store(usb_midi, msg, 3);
+            
             break;
         case USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1_LEN) return;
-            ESP_LOGE(TAG, "sysex end 1 syscom 1 messages unimplemented");
+
+            usb_midi_sysex_store(usb_midi, msg, 1);
+            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_reset(usb_midi);
+
             break;
         case USB_MIDI_CIN_SYSEX_END_2:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_2_LEN) return;
-            ESP_LOGE(TAG, "sysex end 2 messages unimplemented");
+
+            usb_midi_sysex_store(usb_midi, msg, 2);
+            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_reset(usb_midi);
+
             break;
         case USB_MIDI_CIN_SYSEX_END_3:
             if (msg_len < USB_MIDI_CIN_SYSEX_END_3_LEN) return;
-            ESP_LOGE(TAG, "sysex end 3 messages unimplemented");
+
+            usb_midi_sysex_store(usb_midi, msg, 3);
+            USB_MIDI_INVOKE_CALLBACK(callbacks, sysex, usb_midi->sysex_buffer, usb_midi->sysex_len);
+            usb_midi_sysex_reset(usb_midi);
+
             break;
         case USB_MIDI_CIN_NOTE_OFF:
             if (msg_len < USB_MIDI_CIN_NOTE_OFF_LEN) return;
@@ -220,6 +260,9 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     usb_midi->data_out->bEndpointAddress = data_out->bEndpointAddress;
     usb_midi->data_out->callback = usb_midi_data_out_callback;
     usb_midi->data_out->context = (void *) usb_midi;
+
+    // reset the sysex length
+    usb_midi->sysex_len = 0;
 
     // invoke the connected callback
     USB_MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, connected, usb_midi->device_descriptor);

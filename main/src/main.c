@@ -40,12 +40,16 @@ static usb_midi_t usb_midi;
 static channel_t channels[NUM_CHANNELS];
 
 
-void connected_callback(usb_device_desc_t *device_descriptor) {
+void connected_callback(const usb_device_desc_t *device_descriptor) {
     ESP_LOGI(TAG, "connected (vid: 0x%04x, pid: 0x%04x)", device_descriptor->idVendor, device_descriptor->idProduct);
 }
 
-void disconnected_callback(usb_device_desc_t *device_descriptor) {
+void disconnected_callback(const usb_device_desc_t *device_descriptor) {
     ESP_LOGI(TAG, "disconnected (vid: 0x%04x, pid: 0x%04x)", device_descriptor->idVendor, device_descriptor->idProduct);
+}
+
+void sysex_callback(const uint8_t *data, size_t length) {
+    ESP_LOGI(TAG, "sysex (length: %d)", length);
 }
 
 void note_on_callback(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -86,6 +90,7 @@ void app_main(void) {
         .callbacks = {
             .connected = connected_callback,
             .disconnected = disconnected_callback,
+            .sysex = sysex_callback,
             .note_on = note_on_callback,
             .note_off = note_off_callback,
             .poly_key_pressure = poly_key_pressure_callback,

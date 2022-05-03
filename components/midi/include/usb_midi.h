@@ -7,6 +7,7 @@
 #define USB_SUBCLASS_MIDISTREAMING 0x03
 
 #define USB_MIDI_PACKET_SIZE 64
+#define USB_MIDI_SYSEX_BUFFER_SIZE 256
 
 #define USB_MIDI_CIN_MISC 0x0
 #define USB_MIDI_CIN_CABLE_EVENT 0x1
@@ -40,8 +41,9 @@
 #define USB_MIDI_CIN_BYTE_LEN 1
 
 
-typedef void (*usb_midi_device_connected_callback_t)(usb_device_desc_t *device_descriptor);
-typedef void (*usb_midi_device_disconnected_callback_t)(usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_device_connected_callback_t)(const usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_device_disconnected_callback_t)(const usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_sysex_callback_t)(const uint8_t *data, size_t length);
 typedef void (*usb_midi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 typedef void (*usb_midi_note_off_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
 typedef void (*usb_midi_poly_key_pressure_callback_t)(uint8_t channel, uint8_t note, uint8_t pressure);
@@ -53,6 +55,7 @@ typedef void (*usb_midi_pitch_bend_callback_t)(uint8_t channel, int16_t value);
 typedef struct {
     usb_midi_device_connected_callback_t connected;
     usb_midi_device_disconnected_callback_t disconnected;
+    usb_midi_sysex_callback_t sysex;
     usb_midi_note_on_callback_t note_on;
     usb_midi_note_off_callback_t note_off;
     usb_midi_poly_key_pressure_callback_t poly_key_pressure;
@@ -78,6 +81,9 @@ typedef struct {
     const usb_intf_desc_t *interface;
     usb_transfer_t *data_in;
     usb_transfer_t *data_out;
+
+    uint8_t sysex_buffer[USB_MIDI_SYSEX_BUFFER_SIZE];
+    size_t sysex_len;
 } usb_midi_t;
 
 

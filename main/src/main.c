@@ -12,7 +12,7 @@
 #define NUM_CHANNELS 4
 
 
-static const char *TAG = "espmidi";
+//static const char *TAG = "espmidi";
 
 
 const channel_config_t channel_configs[NUM_CHANNELS] = {

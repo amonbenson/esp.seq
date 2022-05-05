@@ -3,7 +3,7 @@
 #include <esp_log.h>
 
 
-static const char *TAG = "midi";
+//static const char *TAG = "midi";
 
 
 const uint8_t midi_channel_voice_message_lengths[7] = {

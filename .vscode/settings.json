@@ -1,6 +1,7 @@
 {
   "C_Cpp.intelliSenseEngine": "Default",
   "idf.portWin": "COM6",
+  "idf.flashBaudRate": "460800",
   "idf.adapterTargetName": "esp32s2",
   "idf.openOcdConfigs": [
     "interface/ftdi/esp32_devkitj_v1.cfg",
@@ -40,7 +41,8 @@
     "sstream": "c",
     "streambuf": "c",
     "random": "c",
-    "list": "c"
+    "list": "c",
+    "condition_variable": "c"
   },
   "cmakeExplorer.buildDir": "build"
 }

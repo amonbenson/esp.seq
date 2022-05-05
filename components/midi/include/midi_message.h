@@ -39,9 +39,9 @@ typedef struct {
             const uint8_t *data;
         } sysex;
         struct {
-            midi_tcqf_piece_t piece;
+            uint8_t piece;
             uint8_t value;
-            midi_tcqf_rate_t rate;
+            uint8_t rate;
         } tcqf;
         struct {
             uint16_t value;
@@ -50,7 +50,7 @@ typedef struct {
             uint8_t value;
         } song_select;
     };
-} midi_message_t;
+} __attribute__((packed)) midi_message_t;
 
 
 esp_err_t midi_message_decode(const uint8_t *data, size_t length, midi_message_t *message);

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <esp_err.h>
+#include <esp_log.h>
 #include <usb/usb_host.h>
+#include "midi_message.h"
 #include "usb.h"
 
 
@@ -9,39 +12,27 @@
 #define USB_MIDI_PACKET_MAX_LEN 64
 #define USB_MIDI_SYSEX_MAX_LEN 256
 
-#define USB_MIDI_CIN_MISC 0x0
-#define USB_MIDI_CIN_CABLE_EVENT 0x1
-#define USB_MIDI_CIN_SYSCOM_2 0x2
-#define USB_MIDI_CIN_SYSCOM_2_LEN 2
-#define USB_MIDI_CIN_SYSCOM_3 0x3
-#define USB_MIDI_CIN_SYSCOM_3_LEN 3
-#define USB_MIDI_CIN_SYSEX_START 0x4
-#define USB_MIDI_CIN_SYSEX_START_LEN 3
-#define USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1 0x5
-#define USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1_LEN 1
-#define USB_MIDI_CIN_SYSEX_END_2 0x6
-#define USB_MIDI_CIN_SYSEX_END_2_LEN 2
-#define USB_MIDI_CIN_SYSEX_END_3 0x7
-#define USB_MIDI_CIN_SYSEX_END_3_LEN 3
-#define USB_MIDI_CIN_NOTE_OFF 0x8
-#define USB_MIDI_CIN_NOTE_OFF_LEN 3
-#define USB_MIDI_CIN_NOTE_ON 0x9
-#define USB_MIDI_CIN_NOTE_ON_LEN 3
-#define USB_MIDI_CIN_POLY_KEY_PRESSURE 0xA
-#define USB_MIDI_CIN_POLY_KEY_PRESSURE_LEN 3
-#define USB_MIDI_CIN_CONTROL_CHANGE 0xB
-#define USB_MIDI_CIN_CONTROL_CHANGE_LEN 3
-#define USB_MIDI_CIN_PROGRAM_CHANGE 0xC
-#define USB_MIDI_CIN_PROGRAM_CHANGE_LEN 2
-#define USB_MIDI_CIN_CHANNEL_PRESSURE 0xD
-#define USB_MIDI_CIN_CHANNEL_PRESSURE_LEN 2
-#define USB_MIDI_CIN_PITCH_BEND 0xE
-#define USB_MIDI_CIN_PITCH_BEND_LEN 3
-#define USB_MIDI_CIN_BYTE 0xF
-#define USB_MIDI_CIN_BYTE_LEN 1
+typedef enum {
+    USB_MIDI_CIN_MISC = 0x0,
+    USB_MIDI_CIN_CABLE_EVENT = 0x1,
+    USB_MIDI_CIN_SYSCOM_2 = 0x2,
+    USB_MIDI_CIN_SYSCOM_3 = 0x3,
+    USB_MIDI_CIN_SYSEX_START = 0x4,
+    USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1 = 0x5,
+    USB_MIDI_CIN_SYSEX_END_2 = 0x6,
+    USB_MIDI_CIN_SYSEX_END_3 = 0x7,
+    USB_MIDI_CIN_NOTE_OFF = 0x8,
+    USB_MIDI_CIN_NOTE_ON = 0x9,
+    USB_MIDI_CIN_POLY_KEY_PRESSURE = 0xA,
+    USB_MIDI_CIN_CONTROL_CHANGE = 0xB,
+    USB_MIDI_CIN_PROGRAM_CHANGE = 0xC,
+    USB_MIDI_CIN_CHANNEL_PRESSURE = 0xD,
+    USB_MIDI_CIN_PITCH_BEND = 0xE,
+    USB_MIDI_CIN_BYTE = 0xF
+} udb_midi_cin_t;
 
 
-typedef void (*usb_midi_device_connected_callback_t)(const usb_device_desc_t *device_descriptor);
+/* typedef void (*usb_midi_device_connected_callback_t)(const usb_device_desc_t *device_descriptor);
 typedef void (*usb_midi_device_disconnected_callback_t)(const usb_device_desc_t *device_descriptor);
 typedef void (*usb_midi_sysex_callback_t)(const uint8_t *data, size_t length);
 typedef void (*usb_midi_note_on_callback_t)(uint8_t channel, uint8_t note, uint8_t velocity);
@@ -63,10 +54,18 @@ typedef struct {
     usb_midi_program_change_callback_t program_change;
     usb_midi_channel_pressure_callback_t channel_pressure;
     usb_midi_pitch_bend_callback_t pitch_bend;
-} usb_midi_callbacks_t;
+} usb_midi_callbacks_t; */
+
+typedef void (*usb_midi_device_connected_callback_t)(const usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_device_disconnected_callback_t)(const usb_device_desc_t *device_descriptor);
+typedef void (*usb_midi_recv_callback_t)(const midi_message_t *message);
 
 typedef struct {
-    usb_midi_callbacks_t callbacks;
+    struct {
+        usb_midi_device_connected_callback_t connected;
+        usb_midi_device_disconnected_callback_t disconnected;
+        usb_midi_recv_callback_t recv;
+    } callbacks;
 } usb_midi_config_t;
 
 typedef struct {
@@ -91,6 +90,4 @@ void usb_midi_driver_task(void *arg);
 
 esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi);
 
-esp_err_t usb_midi_send_note_off(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity);
-
-esp_err_t usb_midi_send_note_on(usb_midi_t *usb_midi, uint8_t channel, uint8_t note, uint8_t velocity);
+esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message);

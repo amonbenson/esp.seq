@@ -1,5 +1,5 @@
 {
-  "C_Cpp.intelliSenseEngine": "Tag Parser",
+  "C_Cpp.intelliSenseEngine": "Default",
   "idf.portWin": "COM6",
   "idf.adapterTargetName": "esp32s2",
   "idf.openOcdConfigs": [
@@ -32,6 +32,15 @@
     "functional": "c",
     "tuple": "c",
     "utility": "c",
-    "future": "c"
-  }
+    "future": "c",
+    "bitset": "c",
+    "vector": "c",
+    "iomanip": "c",
+    "limits": "c",
+    "sstream": "c",
+    "streambuf": "c",
+    "random": "c",
+    "list": "c"
+  },
+  "cmakeExplorer.buildDir": "build"
 }

@@ -89,7 +89,7 @@ esp_err_t dac_init(const dac_config_t *config, dac_t *dac) {
 
     // store the config and set the initial values
     memset(dac, 0, sizeof(dac_t));
-    memcpy(&dac->config, config, sizeof(dac_config_t));
+    dac->config = *config;
 
     // initialize the spi device
     const spi_device_interface_config_t dev_config = {

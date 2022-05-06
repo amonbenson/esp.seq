@@ -3,7 +3,12 @@
 #include <esp_err.h>
 #include "usb_midi.h"
 #include "midi_message.h"
-// #include "midi_interface.h"
+
+
+#define MIDI_INVOKE_CALLBACK(callbacks, name, ...) \
+    if ((callbacks)->name != NULL) { \
+        (callbacks)->name(__VA_ARGS__); \
+    }
 
 
 typedef void (*midi_send_callback_t)(size_t interface_id, const midi_message_t *message);

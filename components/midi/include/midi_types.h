@@ -5,11 +5,6 @@
 #define MIDI_COMMAND_IS_CHANNEL_VOICE(command) (MIDI_COMMAND_IS_VALID(command) && (command) < 0xF0)
 #define MIDI_COMMAND_IS_SYSTEM_COMMON(command) (MIDI_COMMAND_IS_VALID(command) && (command) >= 0xF0)
 
-#define MIDI_INVOKE_CALLBACK(callbacks, name, ...) \
-    if ((callbacks)->name != NULL) { \
-        (callbacks)->name(__VA_ARGS__); \
-    }
-
 
 #define MIDI_COMMAND_NOTE_OFF 0x80
 #define MIDI_COMMAND_NOTE_ON 0x90

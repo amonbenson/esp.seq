@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <esp_log.h>
 #include <usb/usb_host.h>
+#include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include "midi_message.h"
 #include "usb.h"
@@ -30,6 +31,9 @@
 #define USB_MIDI_CIN_CHANNEL_PRESSURE 0xD
 #define USB_MIDI_CIN_PITCH_BEND 0xE
 #define USB_MIDI_CIN_BYTE 0xF
+
+#define USB_MIDI_LOCK(usb_midi) xSemaphoreTake((usb_midi)->lock, portMAX_DELAY)
+#define USB_MIDI_UNLOCK(usb_midi) xSemaphoreGive((usb_midi)->lock)
 
 
 typedef uint8_t usb_midi_cin_t;
@@ -70,7 +74,9 @@ typedef struct {
     usb_driver_config_t driver_config;
     usb_midi_config_t config;
 
+    SemaphoreHandle_t lock;
     usb_midi_state_t state;
+
     usb_host_client_handle_t client;
     usb_device_handle_t device;
     uint8_t device_address;

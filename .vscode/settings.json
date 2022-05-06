@@ -42,7 +42,8 @@
     "streambuf": "c",
     "random": "c",
     "list": "c",
-    "condition_variable": "c"
+    "condition_variable": "c",
+    "mutex": "c"
   },
   "cmakeExplorer.buildDir": "build"
 }

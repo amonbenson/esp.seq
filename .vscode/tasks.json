@@ -26,7 +26,8 @@
             "problemMatcher": {
                 "base": "$gcc",
                 "fileLocation": "absolute"
-            }
+            },
+            "dependsOn": ["terminate"]
         },
         {
             "label": "flash",
@@ -64,7 +65,8 @@
                 "showReuseMessage": false,
                 "clear": true
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "dependsOn": ["terminate"]
         },
         {
             "label": "clean",
@@ -83,7 +85,8 @@
                 "showReuseMessage": false,
                 "clear": true
             },
-            "problemMatcher": []
+            "problemMatcher": [],
+            "dependsOn": ["terminate"]
         },
         {
             "label": "flash and monitor",
@@ -103,7 +106,7 @@
                 "clear": true
             },
             "problemMatcher": [],
-            "dependsOn": "flash"
+            "dependsOn": ["terminate", "flash"]
         },
         {
             "label": "terminate",

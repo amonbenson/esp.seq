@@ -141,6 +141,41 @@ static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
     ESP_LOGI(TAG, "data out callback");
 }
 
+void usb_midi_in_task(void *arg) {
+    usb_midi_t *usb_midi = (usb_midi_t *) arg;
+    /* usb_midi_packet_t packet;
+    midi_message_t message; */
+
+    while (1) {
+        vTaskDelay(portMAX_DELAY);
+    }
+
+    vTaskDelete(NULL);
+}
+
+void usb_midi_out_task(void *arg) {
+    usb_midi_t *usb_midi = (usb_midi_t *) arg;
+    usb_midi_packet_t packet;
+    midi_message_t message;
+
+    while (1) {
+        // TODO: use some kind of notification!!!
+        //while (usb_midi->state != USB_MIDI_CONNECTED) vTaskDelay(100);
+
+        // wait for the next packet
+        xQueueReceive(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+
+        // handle the packet
+        xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
+        ESP_LOGI(TAG, "PACKET AVAILABLE");
+
+        midi_message_decode(packet.data, 3, &message);
+        midi_message_print(&message);
+
+        xSemaphoreGive(usb_midi->lock);
+    }
+}
+
 static esp_err_t usb_midi_port_init(usb_midi_t *usb_midi, usb_midi_port_t *port, const usb_ep_desc_t *endpoint, usb_transfer_cb_t transfer_callback) {
     usb_transfer_t *transfer;
 
@@ -164,7 +199,6 @@ static esp_err_t usb_midi_port_init(usb_midi_t *usb_midi, usb_midi_port_t *port,
     port->sysex_buffer = malloc(USB_MIDI_SYSEX_BUFFER_SIZE);
     ESP_RETURN_ON_FALSE(port->sysex_buffer, ESP_ERR_NO_MEM,
         TAG, "failed to allocate sysex buffer");
-    
     port->sysex_len = 0;
 
     return ESP_OK;
@@ -284,6 +318,10 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     usb_midi->state = USB_MIDI_CONNECTED;
     MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, connected, usb_midi->device_descriptor);
 
+    // init the io queue handler tasks
+    xTaskCreatePinnedToCore(usb_midi_in_task, "usb_midi_in", 2048, (void *) usb_midi, 3, usb_midi->in.task, 0);
+    xTaskCreatePinnedToCore(usb_midi_out_task, "usb_midi_out", 2048, (void *) usb_midi, 3, usb_midi->out.task, 0);
+
     // start input polling
     ESP_GOTO_ON_ERROR(usb_host_transfer_submit(usb_midi->in.transfer), exit,
         TAG, "failed to submit data in transfer");
@@ -303,6 +341,10 @@ static esp_err_t usb_midi_close_device(usb_midi_t *usb_midi) {
 
     ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
         TAG, "device is not connected");
+
+    // kill the io queue handler tasks
+    vTaskDelete(usb_midi->in.task);
+    vTaskDelete(usb_midi->out.task);
 
     // mark as disconnected and invoke the callback
     usb_midi->state = USB_MIDI_DISCONNECTED;
@@ -382,14 +424,12 @@ void usb_midi_driver_task(void *arg) {
 esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
     memset(usb_midi, 0, sizeof(usb_midi_t));
 
-    // store the config
+    // store the config and initial state
     usb_midi->config = *config;
-
-    // setup the driver
-    usb_midi->lock = xSemaphoreCreateMutex();
     usb_midi->state = USB_MIDI_DISCONNECTED;
+    usb_midi->lock = xSemaphoreCreateMutex();
 
-    // link the task function and argument
+    // link the driver task function and argument, this will be dispatched from the usb interface
     usb_midi->driver_config.task = usb_midi_driver_task;
     usb_midi->driver_config.arg = (void *) usb_midi;
 
@@ -398,6 +438,8 @@ esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
 
 esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
     esp_err_t err;
+    usb_midi_packet_t packet;
+
     if (!MIDI_COMMAND_IS_CHANNEL_VOICE(message->command)) {
         return ESP_ERR_NOT_SUPPORTED;
     }
@@ -410,21 +452,25 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
         goto exit;
     }
 
+    // set the cin
+    packet.cn_cin = message->command >> 4;
+
+    // encode the message
+    err = midi_message_encode(message, packet.data, 3);
+    if (err != ESP_OK) goto exit;
+
+    // queue the packet
+    xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+
+    /*
     // init the output buffer
     usb_midi->out.transfer->num_bytes = 4;
     usb_midi->out.transfer->timeout_ms = 10000;
-    memset(usb_midi->out.transfer->data_buffer, 0, 4);
-
-    // set the cin
-    usb_midi->out.transfer->data_buffer[0] = message->command >> 4;
-
-    // encode the message
-    err = midi_message_encode(message, usb_midi->out.transfer->data_buffer + 1, 3);
-    if (err != ESP_OK) goto exit;
 
     // submit the transfer
     err = usb_host_transfer_submit(usb_midi->out.transfer);
     if (err != ESP_OK) goto exit;
+    */
 
     err = ESP_OK;
 exit:

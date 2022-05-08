@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <esp_log.h>
 #include <usb/usb_host.h>
+#include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include "midi_message.h"
@@ -61,6 +62,8 @@ typedef struct {
     usb_transfer_t *transfer;
 
     QueueHandle_t packet_queue;
+    TaskHandle_t task;
+
     uint8_t *sysex_buffer;
     size_t sysex_len;
 } usb_midi_port_t;

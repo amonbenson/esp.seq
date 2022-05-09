@@ -44,7 +44,11 @@ static channel_t channels[NUM_CHANNELS];
 
 void usb_midi_recv_callback(const midi_message_t *message) {
     if (message->command != MIDI_COMMAND_SYSEX) midi_message_print(message);
-    usb_midi_send(&usb_midi, message);
+    //usb_midi_send(&usb_midi, message);
+
+    midi_message_t msg2 = *message;
+    msg2.note_on.note += 1;
+    //usb_midi_send(&usb_midi, message);
 }
 
 

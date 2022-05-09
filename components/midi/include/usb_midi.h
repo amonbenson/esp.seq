@@ -12,9 +12,9 @@
 
 #define USB_SUBCLASS_MIDISTREAMING 0x03
 
-#define USB_MIDI_TRANSFER_MAX_SIZE 64
+#define USB_MIDI_TRANSFER_MAX_SIZE 128
 #define USB_MIDI_SYSEX_BUFFER_SIZE 256
-#define USB_MIDI_PACKET_QUEUE_SIZE 32
+#define USB_MIDI_PACKET_QUEUE_SIZE (USB_MIDI_TRANSFER_MAX_SIZE / sizeof(usb_midi_packet_t))
 
 #define USB_MIDI_CIN_MISC 0x0
 #define USB_MIDI_CIN_CABLE_EVENT 0x1
@@ -60,6 +60,7 @@ typedef struct {
 typedef struct {
     const usb_ep_desc_t *endpoint;
     usb_transfer_t *transfer;
+    SemaphoreHandle_t lock;
 
     QueueHandle_t packet_queue;
     TaskHandle_t task;

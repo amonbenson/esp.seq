@@ -41,14 +41,27 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
 static usb_midi_t usb_midi;
 static channel_t channels[NUM_CHANNELS];
 
+uint8_t SYSEX_SET_ALL_LEDS[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0E, 0x00, 0x70 };
+
 
 void usb_midi_recv_callback(const midi_message_t *message) {
-    if (message->command != MIDI_COMMAND_SYSEX) midi_message_print(message);
-    usb_midi_send(&usb_midi, message);
+    midi_message_t response;
 
-    midi_message_t msg2 = *message;
-    msg2.note_on.note += 1;
-    usb_midi_send(&usb_midi, &msg2);
+    midi_message_print(message);
+
+    if (message->command == MIDI_COMMAND_NOTE_ON) {
+        response.command = MIDI_COMMAND_SYSEX;
+        SYSEX_SET_ALL_LEDS[7] = message->note_on.velocity;
+        response.sysex.data = SYSEX_SET_ALL_LEDS;
+        response.sysex.length = sizeof(SYSEX_SET_ALL_LEDS);
+        usb_midi_send(&usb_midi, &response);
+    } else if (message->command == MIDI_COMMAND_NOTE_OFF) {
+        response.command = MIDI_COMMAND_SYSEX;
+        SYSEX_SET_ALL_LEDS[7] = message->note_off.velocity;
+        response.sysex.data = SYSEX_SET_ALL_LEDS;
+        response.sysex.length = sizeof(SYSEX_SET_ALL_LEDS);
+        usb_midi_send(&usb_midi, &response);
+    }
 }
 
 

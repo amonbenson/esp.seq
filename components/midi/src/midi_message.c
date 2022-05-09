@@ -82,8 +82,8 @@ esp_err_t midi_message_decode(const uint8_t *data, size_t length, midi_message_t
             if (data[length - 1] != MIDI_COMMAND_SYSEX_END) return ESP_ERR_INVALID_ARG;
 
             // store a pointer to the sysex data
-            message->sysex.length = length - 2;
-            message->sysex.data = data + 1;
+            message->sysex.data = data;
+            message->sysex.length = length;
             break;
         case MIDI_COMMAND_SYSEX_END:
             // single EOX byte is invalid
@@ -157,15 +157,12 @@ esp_err_t midi_message_encode(const midi_message_t *message, uint8_t *data, size
             break;
         case MIDI_COMMAND_SYSEX:
             // validate the length
-            if (length < message->sysex.length + 2) {
+            if (length < message->sysex.length) {
                 return ESP_ERR_INVALID_SIZE;
             }
 
             // store the sysex data
-            memcpy(data + 1, message->sysex.data, message->sysex.length);
-
-            // store the EOX byte
-            data[message->sysex.length + 1] = MIDI_COMMAND_SYSEX_END;
+            memcpy(data, message->sysex.data, message->sysex.length);
             break;
         case MIDI_COMMAND_SYSEX_END:
             // single EOX byte is invalid

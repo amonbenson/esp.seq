@@ -76,7 +76,7 @@ static esp_err_t usb_midi_parse_packet(usb_midi_t *usb_midi, const usb_midi_pack
     // handle special messages
     err = ESP_OK;
     switch (cin) {
-        case USB_MIDI_CIN_SYSEX_START:
+        case USB_MIDI_CIN_SYSEX_START_CONT:
             err = usb_midi_sysex_parse(usb_midi, data, 3);
 
             break;
@@ -448,10 +448,12 @@ esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
 
 esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
     esp_err_t ret;
-    usb_midi_packet_t packet;
+    usb_midi_packet_t packet = { 0 };
+    const uint8_t *sysex_data;
+    size_t sysex_length;
 
-    ESP_GOTO_ON_FALSE(MIDI_COMMAND_IS_CHANNEL_VOICE(message->command), ESP_ERR_NOT_SUPPORTED, exit,
-        TAG, "only channel voice messages are supported");
+    ESP_GOTO_ON_FALSE(MIDI_COMMAND_IS_VALID(message->command), ESP_ERR_INVALID_ARG, exit,
+        TAG, "invalid midi command");
 
     xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
 
@@ -459,15 +461,47 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
     ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
         TAG, "device is not connected");
 
-    // set the cin
-    packet.cn_cin = message->command >> 4;
+    // handle short messages
+    if (MIDI_COMMAND_IS_CHANNEL_VOICE(message->command)) {
+        packet.cn_cin = message->command >> 4;
+        ESP_GOTO_ON_ERROR(midi_message_encode(message, packet.data, 3), exit,
+            TAG, "failed to encode message");
+        xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
 
-    // encode the message
-    ESP_GOTO_ON_ERROR(midi_message_encode(message, packet.data, 3), exit,
-        TAG, "failed to encode message");
+        ret = ESP_OK;
+        goto exit;
+    }
 
-    // queue the packet
-    xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+    // handle special messages
+    switch (message->command) {
+        case MIDI_COMMAND_SYSEX:
+            sysex_data = message->sysex.data;
+            sysex_length = message->sysex.length;
+
+            ESP_GOTO_ON_FALSE(sysex_length > 0, ESP_ERR_INVALID_SIZE, exit,
+                TAG, "sysex message has no data");
+
+            // split the sysex message into packets of 3 bytes each
+            while (sysex_length > 3) {
+                packet.cn_cin = USB_MIDI_CIN_SYSEX_START_CONT;
+                memcpy(packet.data, sysex_data, 3);
+                xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+
+                sysex_data += 3;
+                sysex_length -= 3;
+            }
+
+            // store the trailing packet
+            packet.cn_cin = USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1 + sysex_length - 1;
+            memcpy(packet.data, sysex_data, sysex_length);
+            xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+
+            break;
+        default:
+            ESP_LOGE(TAG, "unsupported midi command %d", message->command);
+            ret = ESP_ERR_NOT_SUPPORTED;
+            goto exit;
+    }
 
     ret = ESP_OK;
 exit:

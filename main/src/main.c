@@ -48,7 +48,7 @@ void usb_midi_recv_callback(const midi_message_t *message) {
 
     midi_message_t msg2 = *message;
     msg2.note_on.note += 1;
-    usb_midi_send(&usb_midi, message);
+    usb_midi_send(&usb_midi, &msg2);
 }
 
 

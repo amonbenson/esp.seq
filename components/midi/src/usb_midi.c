@@ -136,20 +136,8 @@ static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
     usb_midi_t *usb_midi = (usb_midi_t *) transfer->context;
 
     // release the transfer lock
-    xSemaphoreGive(usb_midi->out.lock);
+    xSemaphoreGive(usb_midi->transfer_lock);
     ESP_LOGI(TAG, "data out callback");
-}
-
-void usb_midi_in_task(void *arg) {
-    usb_midi_t *usb_midi = (usb_midi_t *) arg;
-    /* usb_midi_packet_t packet;
-    midi_message_t message; */
-
-    while (1) {
-        vTaskDelay(portMAX_DELAY);
-    }
-
-    vTaskDelete(NULL);
 }
 
 void usb_midi_out_task(void *arg) {
@@ -161,7 +149,7 @@ void usb_midi_out_task(void *arg) {
         // wait for new data
         xQueuePeek(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
         xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
-        xSemaphoreTake(usb_midi->out.lock, portMAX_DELAY);
+        xSemaphoreTake(usb_midi->transfer_lock, portMAX_DELAY);
 
         // prepare the transfer
         transfer_size = MIN(uxQueueMessagesWaiting(usb_midi->out.packet_queue) * sizeof(usb_midi_packet_t), USB_MIDI_TRANSFER_MAX_SIZE);
@@ -175,7 +163,6 @@ void usb_midi_out_task(void *arg) {
         usb_host_transfer_submit(usb_midi->out.transfer);
 
         xSemaphoreGive(usb_midi->lock);
-
         taskYIELD();
     }
 }
@@ -205,9 +192,6 @@ static esp_err_t usb_midi_port_init(usb_midi_t *usb_midi, usb_midi_port_t *port,
         TAG, "failed to allocate sysex buffer");
     port->sysex_len = 0;
 
-    port->lock = xSemaphoreCreateBinary();
-    xSemaphoreGive(port->lock);
-
     return ESP_OK;
 }
 
@@ -224,8 +208,6 @@ static esp_err_t usb_midi_port_destroy(usb_midi_t *usb_midi, usb_midi_port_t *po
     // free the data buffers
     vQueueDelete(port->packet_queue);
     free(port->sysex_buffer);
-
-    vSemaphoreDelete(port->lock);
 
     return ESP_OK;
 }
@@ -328,13 +310,13 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     usb_midi->state = USB_MIDI_CONNECTED;
     MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, connected, usb_midi->device_descriptor);
 
-    // init the io queue handler tasks
-    xTaskCreatePinnedToCore(usb_midi_in_task, "usb_midi_in", 2048, (void *) usb_midi, 1, usb_midi->in.task, 0);
-    xTaskCreatePinnedToCore(usb_midi_out_task, "usb_midi_out", 2048, (void *) usb_midi, 1, usb_midi->out.task, 0);
-
     // start input polling
     ESP_GOTO_ON_ERROR(usb_host_transfer_submit(usb_midi->in.transfer), exit,
         TAG, "failed to submit data in transfer");
+
+    // start the out transfer handler task
+    xSemaphoreGive(usb_midi->transfer_lock);
+    xTaskCreatePinnedToCore(usb_midi_out_task, "usb_midi_transfer", 2048, (void *) usb_midi, 1, usb_midi->transfer_task, 0);
 
     ESP_LOGI(TAG, "midi device initialized");
     ret = ESP_OK;
@@ -352,9 +334,8 @@ static esp_err_t usb_midi_close_device(usb_midi_t *usb_midi) {
     ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
         TAG, "device is not connected");
 
-    // kill the io queue handler tasks
-    vTaskDelete(usb_midi->in.task);
-    vTaskDelete(usb_midi->out.task);
+    // kill the out transfer task
+    vTaskDelete(usb_midi->transfer_task);
 
     // mark as disconnected and invoke the callback
     usb_midi->state = USB_MIDI_DISCONNECTED;
@@ -438,6 +419,7 @@ esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
     usb_midi->config = *config;
     usb_midi->state = USB_MIDI_DISCONNECTED;
     usb_midi->lock = xSemaphoreCreateMutex();
+    usb_midi->transfer_lock = xSemaphoreCreateBinary();
 
     // link the driver task function and argument, this will be dispatched from the usb interface
     usb_midi->driver_config.task = usb_midi_driver_task;

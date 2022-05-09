@@ -60,10 +60,8 @@ typedef struct {
 typedef struct {
     const usb_ep_desc_t *endpoint;
     usb_transfer_t *transfer;
-    SemaphoreHandle_t lock;
 
     QueueHandle_t packet_queue;
-    TaskHandle_t task;
 
     uint8_t *sysex_buffer;
     size_t sysex_len;
@@ -89,6 +87,8 @@ typedef struct {
 
     usb_midi_port_t in;
     usb_midi_port_t out;
+    TaskHandle_t transfer_task;
+    SemaphoreHandle_t transfer_lock;
 } usb_midi_t;
 
 

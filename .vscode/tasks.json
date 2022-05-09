@@ -89,24 +89,19 @@
             "dependsOn": ["terminate"]
         },
         {
-            "label": "flash and monitor",
-            "type": "shell",
-            "command": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\tools\\idf.py monitor -p ${config:idf.portWin}",
-            "options": {
-                "cwd": "${workspaceFolder}",
-                "env": {
-                    "PATH": "${env:PATH}:${config:idf.customExtraPaths}"
-                }
-            },
+            "label": "all",
+            "type": "process",
+            "command": "echo \"\"",
             "presentation": {
-                "reveal": "always",
-                "focus": true,
+                "reveal": "never",
+                "focus": false,
                 "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true
             },
             "problemMatcher": [],
-            "dependsOn": ["terminate", "flash"]
+            "dependsOn": ["terminate", "build", "flash", "monitor"],
+            "dependsOrder": "sequence"
         },
         {
             "label": "terminate",

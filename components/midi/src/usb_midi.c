@@ -137,10 +137,6 @@ static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
 
     // release the transfer lock
     xSemaphoreGive(usb_midi->out.lock);
-
-    // device is not valid anymore
-    if (usb_midi->state != USB_MIDI_CONNECTED) return;
-
     ESP_LOGI(TAG, "data out callback");
 }
 
@@ -162,29 +158,25 @@ void usb_midi_out_task(void *arg) {
     size_t i, transfer_size;
 
     while (1) {
-        // TODO: use some kind of notification!!!
-        //while (usb_midi->state != USB_MIDI_CONNECTED) vTaskDelay(100);
-
         // wait for new data
         xQueuePeek(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
-
         xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
+        xSemaphoreTake(usb_midi->out.lock, portMAX_DELAY);
 
         // prepare the transfer
-        transfer_size = uxQueueMessagesWaiting(usb_midi->out.packet_queue) * sizeof(usb_midi_packet_t);
+        transfer_size = MIN(uxQueueMessagesWaiting(usb_midi->out.packet_queue) * sizeof(usb_midi_packet_t), USB_MIDI_TRANSFER_MAX_SIZE);
         usb_midi->out.transfer->num_bytes = transfer_size;
         for (i = 0; i < transfer_size; i += sizeof(usb_midi_packet_t)) {
             assert(xQueueReceive(usb_midi->out.packet_queue, &usb_midi->out.transfer->data_buffer[i], 0) == pdTRUE);
         }
 
         // submit the transfer
-        xSemaphoreTake(usb_midi->out.lock, 10);
-
         ESP_LOGI(TAG, "transfering %d bytes", transfer_size);
         usb_host_transfer_submit(usb_midi->out.transfer);
 
         xSemaphoreGive(usb_midi->lock);
-        // out.lock will be released from the transfer callback
+
+        taskYIELD();
     }
 }
 
@@ -214,6 +206,7 @@ static esp_err_t usb_midi_port_init(usb_midi_t *usb_midi, usb_midi_port_t *port,
     port->sysex_len = 0;
 
     port->lock = xSemaphoreCreateBinary();
+    xSemaphoreGive(port->lock);
 
     return ESP_OK;
 }

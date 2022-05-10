@@ -12,7 +12,7 @@
 #define NUM_CHANNELS 4
 
 
-//static const char *TAG = "espmidi";
+static const char *TAG = "espmidi";
 
 
 const channel_config_t channel_configs[NUM_CHANNELS] = {
@@ -41,27 +41,20 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
 static usb_midi_t usb_midi;
 static channel_t channels[NUM_CHANNELS];
 
-uint8_t SYSEX_SET_ALL_LEDS[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0E, 0x00, 0x70 };
 
+void usb_midi_connected_callback(const usb_device_desc_t *device_descriptor) {
+    ESP_LOGI(TAG, "USB MIDI device connected");
+}
+
+void usb_midi_disconnected_callback(const usb_device_desc_t *device_descriptor) {
+    ESP_LOGI(TAG, "USB MIDI device disconnected");
+}
 
 void usb_midi_recv_callback(const midi_message_t *message) {
-    midi_message_t response;
+    if (message->command == MIDI_COMMAND_SYSEX) return;
 
     midi_message_print(message);
-
-    if (message->command == MIDI_COMMAND_NOTE_ON) {
-        response.command = MIDI_COMMAND_SYSEX;
-        SYSEX_SET_ALL_LEDS[7] = message->note_on.velocity;
-        response.sysex.data = SYSEX_SET_ALL_LEDS;
-        response.sysex.length = sizeof(SYSEX_SET_ALL_LEDS);
-        usb_midi_send(&usb_midi, &response);
-    } else if (message->command == MIDI_COMMAND_NOTE_OFF) {
-        response.command = MIDI_COMMAND_SYSEX;
-        SYSEX_SET_ALL_LEDS[7] = message->note_off.velocity;
-        response.sysex.data = SYSEX_SET_ALL_LEDS;
-        response.sysex.length = sizeof(SYSEX_SET_ALL_LEDS);
-        usb_midi_send(&usb_midi, &response);
-    }
+    usb_midi_send(&usb_midi, message);
 }
 
 
@@ -72,6 +65,8 @@ void app_main(void) {
     // initialize the usb interface
     const usb_midi_config_t usb_midi_config = {
         .callbacks = {
+            .connected = usb_midi_connected_callback,
+            .disconnected = usb_midi_disconnected_callback,
             .recv = usb_midi_recv_callback
         }
     };

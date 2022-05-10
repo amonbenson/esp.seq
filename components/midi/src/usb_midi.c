@@ -13,6 +13,8 @@
 
 
 static const char *TAG = "usb_midi";
+static const char *TAG_IN = "usb_midi: data in";
+static const char *TAG_OUT = "usb_midi: data out";
 
 
 static void usb_midi_sysex_reset(usb_midi_t *usb_midi) {
@@ -21,7 +23,6 @@ static void usb_midi_sysex_reset(usb_midi_t *usb_midi) {
 }
 
 static esp_err_t usb_midi_sysex_parse(usb_midi_t *usb_midi, const uint8_t *data, size_t len) {
-    esp_err_t err;
     midi_message_t message;
     usb_midi_port_t *in = &usb_midi->in;
 
@@ -33,8 +34,8 @@ static esp_err_t usb_midi_sysex_parse(usb_midi_t *usb_midi, const uint8_t *data,
         if (data[i] == 0xf7) {
             in->sysex_len++;
 
-            err = midi_message_decode(in->sysex_buffer, in->sysex_len, &message);
-            if (err != ESP_OK) return err;
+            ESP_RETURN_ON_ERROR(midi_message_decode(in->sysex_buffer, in->sysex_len, &message),
+                TAG, "failed to decode sysex message");
 
             MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, recv, &message);
             usb_midi_sysex_reset(usb_midi);
@@ -45,7 +46,6 @@ static esp_err_t usb_midi_sysex_parse(usb_midi_t *usb_midi, const uint8_t *data,
 }
 
 static esp_err_t usb_midi_parse_packet(usb_midi_t *usb_midi, const usb_midi_packet_t *packet) {
-    esp_err_t err;
     midi_message_t message;
     uint8_t cin;
     const uint8_t *data;
@@ -61,75 +61,76 @@ static esp_err_t usb_midi_parse_packet(usb_midi_t *usb_midi, const usb_midi_pack
 
     // handle short messages
     if (cin >= USB_MIDI_CIN_NOTE_OFF && cin <= USB_MIDI_CIN_PITCH_BEND) {
-        err = midi_message_decode(data, 3, &message);
-        if (err != ESP_OK) return err;
+        ESP_RETURN_ON_ERROR(midi_message_decode(data, 3, &message),
+            TAG, "failed to decode short message");
 
         // cin number should correspond to the midi command
-        if (cin != message.command >> 4) {
-            return ESP_ERR_INVALID_ARG;
-        }
+        ESP_RETURN_ON_FALSE(cin == message.command >> 4, ESP_ERR_INVALID_ARG,
+            TAG, "invalid cin number for short message");
 
         MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, recv, &message);
         return ESP_OK;
     }
 
     // handle special messages
-    err = ESP_OK;
     switch (cin) {
         case USB_MIDI_CIN_SYSEX_START_CONT:
-            err = usb_midi_sysex_parse(usb_midi, data, 3);
-
+            ESP_RETURN_ON_ERROR(usb_midi_sysex_parse(usb_midi, data, 3),
+                TAG, "failed to parse sysex start packet");
             break;
         case USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1:
-            err = usb_midi_sysex_parse(usb_midi, data, 1);
+            ESP_RETURN_ON_ERROR(usb_midi_sysex_parse(usb_midi, data, 1),
+                TAG, "failed to parse sysex end packet");
             usb_midi_sysex_reset(usb_midi);
-
             break;
         case USB_MIDI_CIN_SYSEX_END_2:
-            err = usb_midi_sysex_parse(usb_midi, data, 2);
+            ESP_RETURN_ON_ERROR(usb_midi_sysex_parse(usb_midi, data, 2),
+                TAG, "failed to parse sysex end packet");
             usb_midi_sysex_reset(usb_midi);
-
             break;
         case USB_MIDI_CIN_SYSEX_END_3:
-            err = usb_midi_sysex_parse(usb_midi, data, 3);
+            ESP_RETURN_ON_ERROR(usb_midi_sysex_parse(usb_midi, data, 3),
+                 TAG, "failed to parse sysex end packet");
             usb_midi_sysex_reset(usb_midi);
-
             break;
         default:
-            ESP_LOGE(TAG, "unsupported code index number %d", cin);
-
-            return ESP_ERR_NOT_SUPPORTED;
+            ESP_RETURN_ON_ERROR(ESP_ERR_INVALID_ARG, TAG, "unsupported cin code (%d)", cin);
     }
 
-    return err;
+    return ESP_OK;
 }
 
 static void usb_midi_data_in_callback(usb_transfer_t *transfer) {
+    esp_err_t ret;
     usb_midi_t *usb_midi = (usb_midi_t *) transfer->context;
     const usb_midi_packet_t *packet;
-    esp_err_t err;
     int i, n;
 
+    //xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
+
     // device is not valid anymore
-    if (usb_midi->state != USB_MIDI_CONNECTED) return;
+    ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
+        TAG_IN, "device is not connected anymore");
 
     // validate the size
     n = transfer->actual_num_bytes / 4;
-    if (n == 0) {
-        ESP_LOGE(TAG, "incoming packet: invalid number of bytes %d", n);
-        return;
-    }
+    ESP_GOTO_ON_FALSE(n > 0, ESP_ERR_INVALID_SIZE, exit,
+        TAG_IN, "invalid packet size (%d)", transfer->actual_num_bytes);
 
     // handle the incoming data in 4 byte packets
     for (i = 0, packet = (usb_midi_packet_t *) transfer->data_buffer; i < n; i++, packet++) {
-        err = usb_midi_parse_packet(usb_midi, packet);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "data in packet could not be parsed (code 0x%04x)", err);
-        }
+        ESP_GOTO_ON_ERROR(usb_midi_parse_packet(usb_midi, packet), exit,
+            TAG_IN, "failed to parse packet");
     }
 
     // continue polling
-    usb_host_transfer_submit(usb_midi->in.transfer);
+    ESP_GOTO_ON_ERROR(usb_host_transfer_submit(usb_midi->in.transfer), exit,
+        TAG_IN, "failed to submit transfer");
+
+    ret = ESP_OK;
+exit:
+    //xSemaphoreGive(usb_midi->lock);
+    return;
 }
 
 static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
@@ -137,7 +138,7 @@ static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
 
     // release the transfer lock
     xSemaphoreGive(usb_midi->transfer_lock);
-    ESP_LOGI(TAG, "data out callback");
+    ESP_LOGI(TAG_OUT, "data out callback");
 }
 
 void usb_midi_out_task(void *arg) {
@@ -159,7 +160,7 @@ void usb_midi_out_task(void *arg) {
         }
 
         // submit the transfer
-        ESP_LOGI(TAG, "transfering %d bytes", transfer_size);
+        ESP_LOGI(TAG_OUT, "transfering %d bytes", transfer_size);
         usb_host_transfer_submit(usb_midi->out.transfer);
 
         xSemaphoreGive(usb_midi->lock);
@@ -298,6 +299,7 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
             interface->bInterfaceNumber,
             interface->bAlternateSetting), exit,
         TAG, "failed to claim interface");
+    usb_midi->interface = interface;
 
     // allocate the ports
     ESP_LOGI(TAG, "creating ports");
@@ -314,9 +316,11 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
     ESP_GOTO_ON_ERROR(usb_host_transfer_submit(usb_midi->in.transfer), exit,
         TAG, "failed to submit data in transfer");
 
-    // start the out transfer handler task
+    // start the transfer handler task
     xSemaphoreGive(usb_midi->transfer_lock);
-    xTaskCreatePinnedToCore(usb_midi_out_task, "usb_midi_transfer", 2048, (void *) usb_midi, 1, usb_midi->transfer_task, 0);
+    if (usb_midi->transfer_task == NULL) {
+        xTaskCreatePinnedToCore(usb_midi_out_task, "usb_midi_transfer", 2048, (void *) usb_midi, 1, usb_midi->transfer_task, 0);
+    }
 
     ESP_LOGI(TAG, "midi device initialized");
     ret = ESP_OK;
@@ -334,9 +338,6 @@ static esp_err_t usb_midi_close_device(usb_midi_t *usb_midi) {
     ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
         TAG, "device is not connected");
 
-    // kill the out transfer task
-    vTaskDelete(usb_midi->transfer_task);
-
     // mark as disconnected and invoke the callback
     usb_midi->state = USB_MIDI_DISCONNECTED;
     MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, disconnected, usb_midi->device_descriptor);
@@ -347,7 +348,7 @@ static esp_err_t usb_midi_close_device(usb_midi_t *usb_midi) {
     ESP_GOTO_ON_ERROR(usb_midi_port_destroy(usb_midi, &usb_midi->out), exit,
         TAG, "failed to free output port");
 
-    // release the interface
+    // release the interface (seems to be NULL sometimes?)
     ESP_GOTO_ON_ERROR(usb_host_interface_release(usb_midi->client, usb_midi->device, usb_midi->interface->bInterfaceNumber), exit,
         TAG, "failed to release interface");
 
@@ -363,24 +364,28 @@ exit:
 }
 
 static void usb_midi_client_event_callback(const usb_host_client_event_msg_t *msg, void *arg) {
+    esp_err_t ret;
     usb_midi_t *usb_midi = (usb_midi_t *) arg;
 
     switch (msg->event) {
         case USB_HOST_CLIENT_EVENT_NEW_DEV:
-            if (usb_midi->device_address != 0) break;
-
-            // open new device
-            usb_midi_open_device(usb_midi, msg->new_dev.address);
+            ESP_GOTO_ON_ERROR(usb_midi_open_device(usb_midi, msg->new_dev.address), exit,
+                TAG, "failed to open device");
             break;
         case USB_HOST_CLIENT_EVENT_DEV_GONE:
-            if (usb_midi->device == NULL) break;
-
-            // close device
-            usb_midi_close_device(usb_midi);
+            ESP_GOTO_ON_ERROR(usb_midi_close_device(usb_midi), exit,
+                TAG, "failed to close device");
             break;
         default:
-            ESP_LOGE(TAG, "unknown client event %d", msg->event);
+            ESP_GOTO_ON_ERROR(ESP_ERR_INVALID_ARG, exit,
+                TAG, "unknown client event %d", msg->event);
             break;
+    }
+
+    ret = ESP_OK;
+exit:
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "client event %d failed with error 0x%04x", msg->event, ret);
     }
 }
 
@@ -435,19 +440,19 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
     size_t sysex_length;
 
     ESP_GOTO_ON_FALSE(MIDI_COMMAND_IS_VALID(message->command), ESP_ERR_INVALID_ARG, exit,
-        TAG, "invalid midi command");
+        TAG_OUT, "invalid midi command");
 
     xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
 
     // make sure we are connected
     ESP_GOTO_ON_FALSE(usb_midi->state == USB_MIDI_CONNECTED, ESP_ERR_INVALID_STATE, exit,
-        TAG, "device is not connected");
+        TAG_OUT, "device is not connected");
 
     // handle short messages
     if (MIDI_COMMAND_IS_CHANNEL_VOICE(message->command)) {
         packet.cn_cin = message->command >> 4;
         ESP_GOTO_ON_ERROR(midi_message_encode(message, packet.data, 3), exit,
-            TAG, "failed to encode message");
+            TAG_OUT, "failed to encode message");
         xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
 
         ret = ESP_OK;
@@ -461,7 +466,7 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
             sysex_length = message->sysex.length;
 
             ESP_GOTO_ON_FALSE(sysex_length > 0, ESP_ERR_INVALID_SIZE, exit,
-                TAG, "sysex message has no data");
+                TAG_OUT, "sysex message has no data");
 
             // split the sysex message into packets of 3 bytes each
             while (sysex_length > 3) {
@@ -480,9 +485,8 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
 
             break;
         default:
-            ESP_LOGE(TAG, "unsupported midi command %d", message->command);
-            ret = ESP_ERR_NOT_SUPPORTED;
-            goto exit;
+            ESP_GOTO_ON_ERROR(ESP_ERR_NOT_SUPPORTED, exit,
+                TAG_OUT, "unsupported midi command %d", message->command);
     }
 
     ret = ESP_OK;

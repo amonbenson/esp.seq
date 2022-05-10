@@ -1,7 +1,7 @@
 #include "midi.h"
 
 
-static void midi_interface_recv_callback(void *arg, const midi_message_t *message) {
+/* static void midi_interface_recv_callback(void *arg, const midi_message_t *message) {
     midi_t *midi = (midi_t *) arg;
 }
 
@@ -16,4 +16,5 @@ esp_err_t midi_send(midi_t *midi, size_t interface_id, const midi_message_t *mes
     }
 
     MIDI_INVOKE_CALLBACK(&midi->config.callbacks, send, interface_id, message);
-}
+    return ESP_OK;
+} */

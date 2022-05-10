@@ -11,7 +11,7 @@
     }
 
 
-typedef void (*midi_send_callback_t)(size_t interface_id, const midi_message_t *message);
+/* typedef void (*midi_send_callback_t)(size_t interface_id, const midi_message_t *message);
 typedef void (*midi_recv_callback_t)(size_t interface_id, const midi_message_t *message);
 
 typedef struct {
@@ -32,4 +32,4 @@ esp_err_t midi_init(const midi_config_t *config, midi_t *midi);
 
 esp_err_t midi_send(midi_t *midi, size_t interface_id, const midi_message_t *message);
 
-esp_err_t midi_interface_recv(midi_t *midi, size_t interface_id, const midi_message_t *message);
+esp_err_t midi_interface_recv(midi_t *midi, size_t interface_id, const midi_message_t *message); */

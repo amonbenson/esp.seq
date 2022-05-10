@@ -6,6 +6,7 @@
 #include "usb.h"
 #include "midi_message.h"
 #include "usb_midi.h"
+#include "launchpad.h"
 #include "channel.h"
 
 
@@ -39,22 +40,35 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
 };
 
 static usb_midi_t usb_midi;
+static launchpad_t launchpad;
 static channel_t channels[NUM_CHANNELS];
 
 
-void usb_midi_connected_callback(const usb_device_desc_t *device_descriptor) {
-    ESP_LOGI(TAG, "USB MIDI device connected");
+void usb_midi_connected_callback(const usb_device_desc_t *desc) {
+    if (desc->idVendor == LAUNCHPAD_VENDOR_ID && desc->idProduct == LAUNCHPAD_PRO_PRODUCT_ID) {
+        launchpad_connected_callback(&launchpad, desc);
+    }
 }
 
-void usb_midi_disconnected_callback(const usb_device_desc_t *device_descriptor) {
-    ESP_LOGI(TAG, "USB MIDI device disconnected");
+void usb_midi_disconnected_callback(const usb_device_desc_t *desc) {
+    if (launchpad.connected) {
+        launchpad_disconnected_callback(&launchpad);
+    }
 }
 
 void usb_midi_recv_callback(const midi_message_t *message) {
-    if (message->command == MIDI_COMMAND_SYSEX) return;
+    if (launchpad.connected) {
+        launchpad_recv_callback(&launchpad, message);
+    }
 
-    midi_message_print(message);
-    usb_midi_send(&usb_midi, message);
+    if (message->command == MIDI_COMMAND_NOTE_ON) {
+        channel_set_note(&channels[0], message->note_on.note);
+        channel_set_velocity(&channels[0], message->note_on.velocity);
+        channel_set_gate(&channels[0], true);
+    } else if (message->command == MIDI_COMMAND_NOTE_OFF && channels[0].note == message->note_off.note) {
+        channel_set_velocity(&channels[0], 0);
+        channel_set_gate(&channels[0], false);
+    }
 }
 
 
@@ -73,10 +87,17 @@ void app_main(void) {
     ESP_ERROR_CHECK(usb_midi_init(&usb_midi_config, &usb_midi));
     ESP_ERROR_CHECK(usb_init(&usb_midi.driver_config));
 
-    // create all channels
+    // initialize the launchpad controller
+    const launchpad_config_t launchpad_config = {
+        .usb_midi = &usb_midi
+    };
+    ESP_ERROR_CHECK(launchpad_init(&launchpad_config, &launchpad));
+
+    // initialize all output channels
     for (int i = 0; i < NUM_CHANNELS; i++) {
         ESP_ERROR_CHECK(channel_init(&channel_configs[i], &channels[i]));
     }
 
+    // app is now running, we can delete the setup task
     vTaskDelete(NULL);
 }

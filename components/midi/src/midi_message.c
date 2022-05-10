@@ -1,4 +1,4 @@
-#include "midi.h"
+#include "midi_message.h"
 #include <string.h>
 #include <esp_log.h>
 

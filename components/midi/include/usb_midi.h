@@ -97,3 +97,5 @@ void usb_midi_driver_task(void *arg);
 esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi);
 
 esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message);
+
+esp_err_t usb_midi_send_sysex(usb_midi_t *usb_midi, const uint8_t *data, size_t length);

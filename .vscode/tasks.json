@@ -18,7 +18,7 @@
             "presentation": {
                 "reveal": "always",
                 "revealProblems": "onProblem",
-                "focus": true,
+                "focus": false,
                 "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true
@@ -41,7 +41,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "focus": true,
+                "focus": false,
                 "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true
@@ -60,7 +60,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "focus": true,
+                "focus": false,
                 "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true
@@ -80,7 +80,7 @@
             },
             "presentation": {
                 "reveal": "always",
-                "focus": true,
+                "focus": false,
                 "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true

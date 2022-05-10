@@ -6,6 +6,8 @@
 #include <usb/usb_host.h>
 #include <string.h>
 #include "midi.h"
+#include "midi_types.h"
+#include "midi_message.h"
 
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -310,7 +312,9 @@ static esp_err_t usb_midi_open_device(usb_midi_t *usb_midi, uint8_t address) {
 
     // mark as connected and invoke the callback
     usb_midi->state = USB_MIDI_CONNECTED;
+    xSemaphoreGive(usb_midi->lock);
     MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, connected, usb_midi->device_descriptor);
+    xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
 
     // start input polling
     ESP_GOTO_ON_ERROR(usb_host_transfer_submit(usb_midi->in.transfer), exit,
@@ -340,7 +344,9 @@ static esp_err_t usb_midi_close_device(usb_midi_t *usb_midi) {
 
     // mark as disconnected and invoke the callback
     usb_midi->state = USB_MIDI_DISCONNECTED;
+    xSemaphoreGive(usb_midi->lock);
     MIDI_INVOKE_CALLBACK(&usb_midi->config.callbacks, disconnected, usb_midi->device_descriptor);
+    xSemaphoreTake(usb_midi->lock, portMAX_DELAY);
 
     // free the ports
     ESP_GOTO_ON_ERROR(usb_midi_port_destroy(usb_midi, &usb_midi->in), exit,
@@ -493,4 +499,15 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
 exit:
     xSemaphoreGive(usb_midi->lock);
     return ret;
+}
+
+esp_err_t usb_midi_send_sysex(usb_midi_t *usb_midi, const uint8_t *data, size_t length) {
+    midi_message_t message = {
+        .command = MIDI_COMMAND_SYSEX,
+        .sysex = {
+            .data = data,
+            .length = length
+        }
+    };
+    return usb_midi_send(usb_midi, &message);
 }

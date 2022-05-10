@@ -14,6 +14,12 @@ typedef struct {
 typedef struct {
     channel_config_t config;
     dac_t dac;
+
+    uint8_t note;
+    uint16_t cents;
+    uint8_t velocity;
+    uint8_t gate;
+    uint8_t trigger;
 } channel_t;
 
 

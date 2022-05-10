@@ -22,6 +22,13 @@ static void IRAM_ATTR dac_timer_callback(void *arg) {
         dac = dac_list[i];
         if (dac == NULL) continue;
 
+        // no oversampling
+        if (DAC_OVERSAMPLE_BITS == 0) {
+            dac_write_raw(dac, DAC_A, (uint16_t) (dac->value_a));
+            dac_write_raw(dac, DAC_B, (uint16_t) (dac->value_b));
+            continue;
+        }
+
         // apply the quantization and store the error for the next iteration
         uint32_t value_a = dac->value_a + dac->error_a;
         uint32_t quant_a = dac_quantize(value_a);

@@ -71,6 +71,7 @@ esp_err_t channel_set_velocity(channel_t *channel, uint8_t velocity) {
     channel->velocity = velocity;
 
     uint16_t value = (uint16_t) velocity * (DAC_TOTAL_RESOLUTION - 1) / 127;
+    ESP_LOGI(TAG, "velocity = %d --> value = %d", velocity, value);
     return dac_set_value(&channel->dac, DAC_B, value);
 }
 

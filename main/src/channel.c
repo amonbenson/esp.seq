@@ -60,7 +60,7 @@ esp_err_t channel_set_note_cents(channel_t *channel, uint16_t cents) {
 
     // value = V / Vmax * DACmax, with V = cents * (5/6)
     uint16_t value = (uint16_t) (cents * (uint32_t) (DAC_TOTAL_RESOLUTION - 1) * 5 / 6 / chan_vmax);
-    //ESP_LOGI(TAG, "cents = %d --> value = %d/%d", cents, value, DAC_TOTAL_RESOLUTION - 1);
+    ESP_LOGD(TAG, "cents = %d --> value = %d/%d", cents, value, DAC_TOTAL_RESOLUTION - 1);
     if (value > DAC_TOTAL_RESOLUTION - 1) value = DAC_TOTAL_RESOLUTION - 1;
 
     return dac_set_value(&channel->dac, DAC_A, value);
@@ -71,7 +71,7 @@ esp_err_t channel_set_velocity(channel_t *channel, uint8_t velocity) {
     channel->velocity = velocity;
 
     uint16_t value = (uint16_t) velocity * (DAC_TOTAL_RESOLUTION - 1) / 127;
-    ESP_LOGI(TAG, "velocity = %d --> value = %d", velocity, value);
+    ESP_LOGD(TAG, "velocity = %d --> value = %d", velocity, value);
     return dac_set_value(&channel->dac, DAC_B, value);
 }
 

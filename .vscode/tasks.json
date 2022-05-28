@@ -4,7 +4,10 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\tools\\idf.py build",
+            "command": "${config:taskCommands.idf} build",
+            "windows": {
+                "command": "${config:taskCommands.idfWin} build"
+            },
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
@@ -32,7 +35,10 @@
         {
             "label": "flash",
             "type": "shell",
-            "command": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\components\\esptool_py\\esptool\\esptool.py --chip esp32s2 -p COM6 -b 460800 --no-stub write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build/espmidi.bin",
+            "command": "${config:taskCommands.esptool} --chip ${config:idf.adapterTargetName} -p ${config:idf.port} -b ${config:idf.flashBaudRate} --no-stub write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build/espmidi.bin",
+            "windows": {
+                "command": "${config:taskCommands.esptoolWin} --chip ${config:idf.adapterTargetName} -p ${config:idf.portWin} -b ${config:idf.flashBaudRate} --no-stub write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build\\espmidi.bin"
+            },
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
@@ -51,7 +57,10 @@
         {
             "label": "monitor",
             "type": "shell",
-            "command": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\tools\\idf.py monitor -p ${config:idf.portWin}",
+            "command": "${config:taskCommands.idf} monitor -p ${config:idf.port}",
+            "windows": {
+                "command": "${config:taskCommands.idfWin} monitor -p ${config:idf.portWin}"
+            },
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
@@ -71,7 +80,10 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\tools\\idf.py clean",
+            "command": "${config:taskCommands.idf} clean",
+            "windows": {
+                "command": "${config:taskCommands.idfWin} clean"
+            },
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
@@ -90,7 +102,7 @@
         },
         {
             "label": "all",
-            "type": "process",
+            "type": "shell",
             "command": "echo \"\"",
             "presentation": {
                 "reveal": "never",
@@ -100,7 +112,7 @@
                 "clear": true
             },
             "problemMatcher": [],
-            "dependsOn": ["terminate", "build", "flash", "monitor"],
+            "dependsOn": ["terminate", "flash", "monitor"],
             "dependsOrder": "sequence"
         },
         {

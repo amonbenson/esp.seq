@@ -73,7 +73,7 @@ void usb_midi_recv_callback(const midi_message_t *message) {
 
 
 void app_main(void) {
-    // initialize the dac
+    // initialize the dac interface
     ESP_ERROR_CHECK(dac_global_init());
 
     // initialize the usb interface
@@ -97,6 +97,9 @@ void app_main(void) {
     for (int i = 0; i < NUM_CHANNELS; i++) {
         ESP_ERROR_CHECK(channel_init(&channel_configs[i], &channels[i]));
     }
+
+    // start the dac interface
+    ESP_ERROR_CHECK(dac_start());
 
     // app is now running, we can delete the setup task
     vTaskDelete(NULL);

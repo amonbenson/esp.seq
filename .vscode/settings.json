@@ -45,5 +45,11 @@
     "condition_variable": "c",
     "mutex": "c"
   },
-  "cmakeExplorer.buildDir": "build"
+  "cmakeExplorer.buildDir": "build",
+  "taskCommands": {
+    "idf": "${config:idf.pythonBinPath} ${config:idf.espIdfPath}/tools/idf.py",
+    "idfWin": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\tools\\idf.py",
+    "esptool": "${config:idf.pythonBinPath} ${config:idf.espIdfPath}/components/esptool_py/esptool/esptool.py",
+    "esptoolWin": "${config:idf.pythonBinPathWin} ${config:idf.espIdfPathWin}\\components\\esptool_py\\esptool\\esptool.py"
+  }
 }

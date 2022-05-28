@@ -7,7 +7,8 @@
 
 #define DAC_MAX_DEVICES 4
 
-#define DAC_TIMER_PERIOD_US 500
+#define DAC_TASK_CORE 0 // change to 1 on multi-core systems
+#define DAC_TASK_DELAY_MS 1
 
 #define DAC_SPI_HOST SPI2_HOST
 #define DAC_SPI_SPEED_HZ 10000000
@@ -67,8 +68,8 @@ typedef struct {
 
 
 esp_err_t dac_global_init();
-
 esp_err_t dac_init(const dac_config_t *config, dac_t *dac);
+esp_err_t dac_start();
 
 esp_err_t dac_set_value(dac_t *dac, dac_channel_t channel, uint32_t value);
 

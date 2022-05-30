@@ -31,7 +31,7 @@ esp_err_t launchpad_connected_callback(launchpad_t *launchpad, const usb_device_
     launchpad->connected = true;
 
     // clear the screen
-    //launchpad_pro_clear(launchpad);
+    launchpad_pro_clear(launchpad);
 
     return ESP_OK;
 }

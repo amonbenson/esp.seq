@@ -8,6 +8,7 @@
 #include "usb_midi.h"
 #include "launchpad.h"
 #include "channel.h"
+#include "sequencer.h"
 
 
 #define NUM_CHANNELS 4
@@ -42,6 +43,7 @@ const channel_config_t channel_configs[NUM_CHANNELS] = {
 static usb_midi_t usb_midi;
 static launchpad_t launchpad;
 static channel_t channels[NUM_CHANNELS];
+static sequencer_t sequencer;
 
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
@@ -96,6 +98,19 @@ void app_main(void) {
     // initialize all output channels
     for (int i = 0; i < NUM_CHANNELS; i++) {
         ESP_ERROR_CHECK(channel_init(&channel_configs[i], &channels[i]));
+    }
+
+    // initialize the sequencer
+    const sequencer_config_t sequencer_config = SEQUENCER_DEFAULT_CONFIG();
+    ESP_ERROR_CHECK(sequencer_init(&sequencer, &sequencer_config));
+    ESP_ERROR_CHECK(track_set_active_pattern(&sequencer.tracks[0], 0));
+    ESP_ERROR_CHECK(sequencer_play(&sequencer));
+
+    // test sequence
+    pattern_t *p = track_get_active_pattern(&sequencer.tracks[0]);
+    for (uint16_t i = 0; i < p->config.step_length; i++) {
+        p->steps[i].notes[0] = 60 + i;
+        p->steps[i].velocity = (i % 2 == 0) ? 127 : 0;
     }
 
     // start the dac interface

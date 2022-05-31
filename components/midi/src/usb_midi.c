@@ -391,7 +391,7 @@ static void usb_midi_client_event_callback(const usb_host_client_event_msg_t *ms
     ret = ESP_OK;
 exit:
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "client event %d failed with error 0x%04x", msg->event, ret);
+        ESP_LOGE(TAG, "client event %d failed with error %s", msg->event, esp_err_to_name(ret));
     }
 }
 

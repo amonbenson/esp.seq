@@ -74,27 +74,45 @@ void usb_midi_recv_callback(const midi_message_t *message) {
 }
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    if (event_base != SEQUENCER_EVENT) return;
     uint32_t playhead;
+    pattern_atomic_step_t *step;
 
-    switch (event_id) {
-        case SEQUENCER_TICK_EVENT:
-            playhead = *(uint32_t *) event_data;
-            //ESP_LOGI(TAG, "tick %d", playhead);
-            break;
-        case SEQUENCER_PLAY_EVENT:
-            ESP_LOGI(TAG, "play");
-            break;
-        case SEQUENCER_PAUSE_EVENT:
-            ESP_LOGI(TAG, "pause");
-            break;
-        case SEQUENCER_SEEK_EVENT:
-            playhead = *(uint32_t *) event_data;
-            ESP_LOGI(TAG, "seek %d", playhead);
-            break;
-        default:
-            ESP_LOGE(TAG, "unknown sequencer event: %d", event_id);
-            break;
+    if (event_base == SEQUENCER_EVENT) {
+        switch (event_id) {
+            case SEQUENCER_TICK_EVENT:
+                playhead = *(uint32_t *) event_data;
+                //ESP_LOGI(TAG, "tick %d", playhead);
+                break;
+            case SEQUENCER_PLAY_EVENT:
+                ESP_LOGI(TAG, "play");
+                break;
+            case SEQUENCER_PAUSE_EVENT:
+                ESP_LOGI(TAG, "pause");
+                break;
+            case SEQUENCER_SEEK_EVENT:
+                playhead = *(uint32_t *) event_data;
+                ESP_LOGI(TAG, "seek %d", playhead);
+                break;
+            default:
+                ESP_LOGE(TAG, "unknown sequencer event: %d", event_id);
+                break;
+        }
+    }
+
+    if (event_base == TRACK_EVENT) {
+        switch (event_id) {
+            case TRACK_NOTE_ON_EVENT:
+                step = (pattern_atomic_step_t *) event_data;
+                ESP_LOGI(TAG, "note on %d %d", step->note, step->velocity);
+                break;
+            case TRACK_NOTE_OFF_EVENT:
+                step = (pattern_atomic_step_t *) event_data;
+                ESP_LOGI(TAG, "note off %d", step->note);
+                break;
+            default:
+                ESP_LOGE(TAG, "unknown track event: %d", event_id);
+                break;
+        }
     }
 }
 

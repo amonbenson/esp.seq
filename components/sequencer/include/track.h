@@ -17,6 +17,7 @@ enum {
 
 
 typedef struct {
+    esp_event_loop_handle_t sequencer_event_loop;
 } track_config_t;
 
 typedef struct {

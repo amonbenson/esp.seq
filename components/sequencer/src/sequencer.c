@@ -5,7 +5,6 @@
 
 static const char *TAG = "sequencer";
 
-
 ESP_EVENT_DEFINE_BASE(SEQUENCER_EVENT);
 
 
@@ -52,7 +51,7 @@ esp_err_t sequencer_init(sequencer_t *sequencer, const sequencer_config_t *confi
     // register the default event handler
     if (sequencer->config.event_handler) {
         ESP_RETURN_ON_ERROR(esp_event_handler_register_with(sequencer->event_loop,
-                SEQUENCER_EVENT,
+                ESP_EVENT_ANY_BASE,
                 ESP_EVENT_ANY_ID,
                 sequencer->config.event_handler,
                 sequencer->config.event_handler_arg),
@@ -60,7 +59,9 @@ esp_err_t sequencer_init(sequencer_t *sequencer, const sequencer_config_t *confi
     }
 
     // initialize all tracks.
-    const track_config_t track_config = TRACK_DEFAULT_CONFIG();
+    const track_config_t track_config = {
+        .sequencer_event_loop = sequencer->event_loop
+    };
     for (uint8_t i = 0; i < SEQUENCER_NUM_TRACKS; i++) {
         ESP_RETURN_ON_ERROR(track_init(&sequencer->tracks[i], &track_config),
             TAG, "failed to initialize track %d", i);

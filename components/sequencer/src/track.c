@@ -4,10 +4,8 @@
 
 static const char *TAG = "sequencer: track";
 
+ESP_EVENT_DEFINE_BASE(TRACK_EVENT);
 
-static void track_pattern_note_off_callback(uint8_t note) {
-
-}
 
 esp_err_t track_init(track_t *track, const track_config_t *config) {
     track->config = *config;
@@ -37,6 +35,7 @@ esp_err_t track_seek(track_t *track, uint32_t playhead) {
 
 static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t step) {
     track_t *track = (track_t *) arg;
+    esp_err_t ret;
 
     // nothing to update
     if (step.note == track->active_step.note || step.velocity == track->active_step.velocity) {
@@ -44,13 +43,29 @@ static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t 
     }
 
     // release any previous note
-    if (track->active_step.velocity) {
-        ESP_LOGI(TAG, "note off: %d", track->active_step.note);
+    if (track->active_step.velocity && track->config.sequencer_event_loop) {
+        ret = esp_event_post_to(track->config.sequencer_event_loop,
+            TRACK_EVENT,
+            TRACK_NOTE_OFF_EVENT,
+            &track->active_step,
+            sizeof(track->active_step),
+            portMAX_DELAY);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "failed to post note off event: %s", esp_err_to_name(ret));
+        }
     }
 
     // press the new note
-    if (step.velocity) {
-        ESP_LOGI(TAG, "note on: %d", step.note);
+    if (step.velocity && track->config.sequencer_event_loop) {
+        ret = esp_event_post_to(track->config.sequencer_event_loop,
+            TRACK_EVENT,
+            TRACK_NOTE_ON_EVENT,
+            &step,
+            sizeof(step),
+            portMAX_DELAY);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "failed to post note on event: %s", esp_err_to_name(ret));
+        }
     }
 
     // update the currently active step

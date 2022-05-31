@@ -47,11 +47,11 @@ esp_err_t pattern_seek(pattern_t *pattern, uint32_t playhead) {
     return ESP_OK;
 }
 
-esp_err_t pattern_tick(pattern_t *pattern) {
+esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callback, void *callback_arg) {
     // play the active step
-    if (pattern->substep_position == 0) {
+    if (pattern->substep_position == 0 && callback) {
         pattern_step_t *step = pattern_get_active_step(pattern);
-        ESP_LOGI(TAG, "step %d: note %d, vel %d", pattern->step_position, step->notes[0], step->velocity);
+        callback(callback_arg, step->state);
     }
 
     // move to the next substep
@@ -71,4 +71,15 @@ esp_err_t pattern_tick(pattern_t *pattern) {
 
 pattern_step_t *pattern_get_active_step(pattern_t *pattern) {
     return &pattern->steps[pattern->step_position];
+}
+
+pattern_step_t *pattern_get_previous_step(pattern_t *pattern) {
+    uint16_t position;
+
+    // get the position of the previous step
+    if (pattern->step_position == 0) position = pattern->config.step_length - 1;
+    else position = pattern->step_position - 1;
+
+    // return that step
+    return &pattern->steps[position];
 }

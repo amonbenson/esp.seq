@@ -1,13 +1,19 @@
 #pragma once
 
 #include <esp_err.h>
+#include <esp_event.h>
 #include "pattern.h"
 
 
 #define TRACK_MAX_PATTERNS 16
 
-
 #define TRACK_DEFAULT_CONFIG() ((track_config_t) { })
+
+ESP_EVENT_DECLARE_BASE(TRACK_EVENT);
+enum {
+    TRACK_NOTE_ON_EVENT,
+    TRACK_NOTE_OFF_EVENT
+};
 
 
 typedef struct {
@@ -18,7 +24,9 @@ typedef struct {
     uint32_t playhead;
 
     pattern_t patterns[TRACK_MAX_PATTERNS];
+
     int active_pattern;
+    pattern_atomic_step_t active_step;
 } track_t;
 
 

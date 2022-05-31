@@ -6,27 +6,60 @@
 static const char *TAG = "sequencer";
 
 
+ESP_EVENT_DEFINE_BASE(SEQUENCER_EVENT);
+
+
 static void sequencer_tick(void *arg) {
     sequencer_t *sequencer = (sequencer_t *) arg;
-    esp_err_t err;
+    esp_err_t ret;
 
     // update each track
     for (int i = 0; i < SEQUENCER_NUM_TRACKS; i++) {
-        err = track_tick(&sequencer->tracks[i], sequencer->playhead);
-        if (err != ESP_OK) {
+        ret = track_tick(&sequencer->tracks[i], sequencer->playhead);
+        if (ret != ESP_OK) {
             ESP_LOGE(TAG, "failed to update track %d", i);
         }
     }
 
     // update the playhead
     sequencer->playhead++;
+
+    // fire the tick event
+    ret = esp_event_post_to(sequencer->event_loop,
+        SEQUENCER_EVENT, SEQUENCER_TICK_EVENT,
+        &sequencer->playhead,
+        sizeof(sequencer->playhead),
+        portMAX_DELAY);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "failed to post tick event");
+    }
 }
 
 esp_err_t sequencer_init(sequencer_t *sequencer, const sequencer_config_t *config) {
     sequencer->config = *config;
     sequencer->playhead = 0;
 
-    // initialize all tracks
+    // create the event loop
+    esp_event_loop_args_t event_loop_args = {
+        .queue_size = 32,
+        .task_name = "sequencer_event_loop",
+        .task_priority = 5,
+        .task_stack_size = 2048
+    };
+    ESP_RETURN_ON_ERROR(esp_event_loop_create(&event_loop_args, &sequencer->event_loop),
+        TAG, "failed to create event loop");
+    
+    // register the default event handler
+    if (sequencer->config.event_handler) {
+        ESP_RETURN_ON_ERROR(esp_event_handler_register_with(sequencer->event_loop,
+                SEQUENCER_EVENT,
+                ESP_EVENT_ANY_ID,
+                sequencer->config.event_handler,
+                sequencer->config.event_handler_arg),
+            TAG, "failed to register event handler");
+    }
+
+    // initialize all tracks.
     const track_config_t track_config = TRACK_DEFAULT_CONFIG();
     for (uint8_t i = 0; i < SEQUENCER_NUM_TRACKS; i++) {
         ESP_RETURN_ON_ERROR(track_init(&sequencer->tracks[i], &track_config),
@@ -55,6 +88,14 @@ esp_err_t sequencer_seek(sequencer_t *sequencer, uint32_t playhead) {
             TAG, "failed to seek track %d", i);
     }
 
+    ESP_RETURN_ON_ERROR(esp_event_post_to(sequencer->event_loop,
+            SEQUENCER_EVENT,
+            SEQUENCER_SEEK_EVENT,
+            &sequencer->playhead,
+            sizeof(sequencer->playhead),
+            portMAX_DELAY),
+        TAG, "failed to post seek event");
+
     return ESP_OK;
 }
 
@@ -66,6 +107,14 @@ esp_err_t sequencer_play(sequencer_t *sequencer) {
         TAG, "failed to start timer");
     sequencer->playing = true;
 
+    ESP_RETURN_ON_ERROR(esp_event_post_to(sequencer->event_loop,
+            SEQUENCER_EVENT,
+            SEQUENCER_PLAY_EVENT,
+            NULL,
+            0,
+            portMAX_DELAY),
+        TAG, "failed to post play event");
+
     return ESP_OK;
 }
 
@@ -76,6 +125,14 @@ esp_err_t sequencer_pause(sequencer_t *sequencer) {
     ESP_RETURN_ON_ERROR(esp_timer_stop(sequencer->timer),
         TAG, "failed to stop timer");
     sequencer->playing = false;
+
+    ESP_RETURN_ON_ERROR(esp_event_post_to(sequencer->event_loop,
+            SEQUENCER_EVENT,
+            SEQUENCER_PAUSE_EVENT,
+            NULL,
+            0,
+            portMAX_DELAY),
+        TAG, "failed to post pause event");
 
     return ESP_OK;
 }

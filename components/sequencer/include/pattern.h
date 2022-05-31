@@ -9,13 +9,20 @@
     .resolution = SEQ_TICKS_PER_SIXTEENTH_NOTE \
 })
 
-#define PATTERN_NUM_NOTES 4
 
+typedef union {
+    struct {
+        uint8_t note;
+        uint8_t velocity;
+    };
+    uint16_t drum_mask;
+} pattern_atomic_step_t;
 
-typedef struct {
-    uint8_t notes[PATTERN_NUM_NOTES];
-    uint8_t velocity;
+typedef union {
+    pattern_atomic_step_t state;
 } pattern_step_t;
+
+typedef void (*pattern_step_change_callback_t)(void *arg, pattern_atomic_step_t state);
 
 
 typedef struct {
@@ -38,6 +45,7 @@ esp_err_t pattern_init(pattern_t *pattern, const pattern_config_t *config);
 
 esp_err_t pattern_resize(pattern_t *pattern, uint16_t num_steps);
 esp_err_t pattern_seek(pattern_t *pattern, uint32_t playhead);
-esp_err_t pattern_tick(pattern_t *pattern);
+esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callback, void *callback_arg);
 
 pattern_step_t *pattern_get_active_step(pattern_t *pattern);
+pattern_step_t *pattern_get_previous_step(pattern_t *pattern);

@@ -73,6 +73,31 @@ void usb_midi_recv_callback(const midi_message_t *message) {
     }
 }
 
+void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    if (event_base != SEQUENCER_EVENT) return;
+    uint32_t playhead;
+
+    switch (event_id) {
+        case SEQUENCER_TICK_EVENT:
+            playhead = *(uint32_t *) event_data;
+            //ESP_LOGI(TAG, "tick %d", playhead);
+            break;
+        case SEQUENCER_PLAY_EVENT:
+            ESP_LOGI(TAG, "play");
+            break;
+        case SEQUENCER_PAUSE_EVENT:
+            ESP_LOGI(TAG, "pause");
+            break;
+        case SEQUENCER_SEEK_EVENT:
+            playhead = *(uint32_t *) event_data;
+            ESP_LOGI(TAG, "seek %d", playhead);
+            break;
+        default:
+            ESP_LOGE(TAG, "unknown sequencer event: %d", event_id);
+            break;
+    }
+}
+
 
 void app_main(void) {
     // initialize the dac interface
@@ -101,7 +126,11 @@ void app_main(void) {
     }
 
     // initialize the sequencer
-    const sequencer_config_t sequencer_config = SEQUENCER_DEFAULT_CONFIG();
+    const sequencer_config_t sequencer_config = {
+        .bpm = 120,
+        .event_handler = sequencer_event_handler,
+        .event_handler_arg = NULL
+    };
     ESP_ERROR_CHECK(sequencer_init(&sequencer, &sequencer_config));
     ESP_ERROR_CHECK(track_set_active_pattern(&sequencer.tracks[0], 0));
     ESP_ERROR_CHECK(sequencer_play(&sequencer));
@@ -109,8 +138,8 @@ void app_main(void) {
     // test sequence
     pattern_t *p = track_get_active_pattern(&sequencer.tracks[0]);
     for (uint16_t i = 0; i < p->config.step_length; i++) {
-        p->steps[i].notes[0] = 60 + i;
-        p->steps[i].velocity = (i % 2 == 0) ? 127 : 0;
+        p->steps[i].state.note = 60 + i;
+        p->steps[i].state.velocity = (i % 2 == 0) ? 127 : 0;
     }
 
     // start the dac interface

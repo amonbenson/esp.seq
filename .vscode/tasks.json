@@ -52,6 +52,7 @@
                 "showReuseMessage": false,
                 "clear": true
             },
+            "problemMatcher": [],
             "dependsOn": ["terminate", "build"]
         },
         {

@@ -101,8 +101,7 @@ esp_err_t sequencer_seek(sequencer_t *sequencer, uint32_t playhead) {
 }
 
 esp_err_t sequencer_play(sequencer_t *sequencer) {
-    ESP_RETURN_ON_FALSE(sequencer->playing == false, ESP_ERR_INVALID_STATE,
-        TAG, "sequencer is already playing");
+    if (sequencer->playing) return ESP_OK;
 
     ESP_RETURN_ON_ERROR(esp_timer_start_periodic(sequencer->timer, sequencer_get_tick_period_us(sequencer)),
         TAG, "failed to start timer");
@@ -120,8 +119,7 @@ esp_err_t sequencer_play(sequencer_t *sequencer) {
 }
 
 esp_err_t sequencer_pause(sequencer_t *sequencer) {
-    ESP_RETURN_ON_FALSE(sequencer->playing == true, ESP_ERR_INVALID_STATE,
-        TAG, "sequencer is already stopped");
+    if (!sequencer->playing) return ESP_OK;
 
     ESP_RETURN_ON_ERROR(esp_timer_stop(sequencer->timer),
         TAG, "failed to stop timer");

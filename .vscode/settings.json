@@ -5,6 +5,7 @@
   "idf.adapterTargetName": "esp32s2",
   "idf.flashType": "DFU",
   "files.associations": {
+    "*.h": "c",
     "*.c": "c",
     "*.lds": "linkerscript",
     "*.xaml": "xml",
@@ -12,7 +13,6 @@
     "*.make": "makefile",
     "*.json": "jsonc",
     "Makefile.*": "makefile",
-    "*.h": "c",
     "*.inc": "c",
     "type_traits": "c",
     "*.ipp": "c",
@@ -39,7 +39,8 @@
     "random": "c",
     "list": "c",
     "condition_variable": "c",
-    "mutex": "c"
+    "mutex": "c",
+    "chrono": "c"
   },
   "cmakeExplorer.buildDir": "build",
   "taskCommands": {

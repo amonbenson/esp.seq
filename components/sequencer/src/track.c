@@ -38,7 +38,7 @@ static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t 
     esp_err_t ret;
 
     // nothing to update
-    if (step.note == track->active_step.note || step.velocity == track->active_step.velocity) {
+    if (step.note == track->active_step.note && step.velocity == track->active_step.velocity) {
         return;
     }
 

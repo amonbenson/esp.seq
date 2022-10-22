@@ -8,18 +8,36 @@
 static const char *TAG = "espmidi";
 
 
-static const output_pins_t output_digital_pins = {
-    .length = 2,
-    .pins = { 4, 5 }
-};
-static const output_pins_t output_analog_pins = {
-    .length = 2,
-    .pins = { 2, 3 }
-};
+#define OUTPUT_MATRIX_COLUMNS 1
+#define OUTPUT_MATRIX_ROWS 2
+
+#define MILLIVOLTS_PER_SEMITONE 120 // 12 semitones = 1 octave = 1 volt
+#define ROOTNOTE 36 // C2
+
+
+static const gpio_num_t output_digital_pins[] = { 3 };
+static const gpio_num_t output_analog_pins[] = { 2 };
 
 
 static output_t output;
 static sequencer_t sequencer;
+
+
+uint32_t note_to_millivolts(uint32_t note) {
+    // lower limit
+    if (note < ROOTNOTE) return 0;
+
+    uint32_t millivolts = (note - ROOTNOTE) * MILLIVOLTS_PER_SEMITONE;
+
+    // upper limit
+    if (millivolts > OUTPUT_ANALOG_MILLIVOLTS) return OUTPUT_ANALOG_MILLIVOLTS;
+
+    return millivolts;
+}
+
+uint32_t velocity_to_millivolts(uint32_t velocity) {
+    return velocity * OUTPUT_ANALOG_MILLIVOLTS / 127;
+}
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -52,11 +70,14 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         switch (event_id) {
             case TRACK_NOTE_ON_EVENT:
                 step = (pattern_atomic_step_t *) event_data;
-                ESP_LOGI(TAG, "note on %d %d", step->note, step->velocity);
+                ESP_LOGI(TAG, "note on %d %d", step->note, step->note);
+                output_set(&output, 0, 0, note_to_millivolts(step->note));
+                output_set(&output, 0, 1, velocity_to_millivolts(step->velocity));
                 break;
             case TRACK_NOTE_OFF_EVENT:
                 step = (pattern_atomic_step_t *) event_data;
                 ESP_LOGI(TAG, "note off %d", step->note);
+                output_set(&output, 0, 1, velocity_to_millivolts(step->velocity));
                 break;
             default:
                 ESP_LOGE(TAG, "unknown track event: %d", event_id);
@@ -66,22 +87,28 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
 }
 
 void app_main(void) {
-    ESP_LOGI(TAG, "ESP MIDI");
+    ESP_LOGI(TAG, "ESP MIDI v2.0");
 
     // setup the output unit
     const output_config_t output_config = {
-        .digital_pins = &output_digital_pins,
-        .analog_pins = &output_analog_pins
+        .digital_pins = output_digital_pins,
+        .num_digital_pins = sizeof(output_digital_pins) / sizeof(gpio_num_t),
+        .analog_pins = output_analog_pins,
+        .num_analog_pins = sizeof(output_analog_pins) / sizeof(gpio_num_t),
+        .matrix_size = {
+            .columns = OUTPUT_MATRIX_COLUMNS,
+            .rows = OUTPUT_MATRIX_ROWS
+        }
     };
-    output_init(&output, &output_config);
+    ESP_ERROR_CHECK(output_init(&output, &output_config));
     
     // setup the sequencer
     const sequencer_config_t sequencer_config = {
-        .bpm = 120,
+        .bpm = 10, // 120,
         .event_handler = sequencer_event_handler,
         .event_handler_arg = NULL
     };
-    sequencer_init(&sequencer, &sequencer_config);
+    ESP_ERROR_CHECK(sequencer_init(&sequencer, &sequencer_config));
 
     // test sequence
     track_t *track = &sequencer.tracks[0];

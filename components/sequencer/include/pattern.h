@@ -1,6 +1,7 @@
 #pragma once
 
 #include <esp_err.h>
+#include <stdbool.h>
 #include "sequencer_config.h"
 
 
@@ -18,11 +19,13 @@ typedef union {
     uint16_t drum_mask;
 } pattern_atomic_step_t;
 
-typedef union {
-    pattern_atomic_step_t state;
+typedef struct {
+    pattern_atomic_step_t atomic;
+    uint8_t gate;
+    uint8_t probability;
 } pattern_step_t;
 
-typedef void (*pattern_step_change_callback_t)(void *arg, pattern_atomic_step_t state);
+typedef void (*pattern_step_change_callback_t)(void *arg, pattern_atomic_step_t step);
 
 
 typedef struct {
@@ -37,6 +40,9 @@ typedef struct {
     uint16_t substep_position;
     uint16_t step_position;
 
+    bool active_step_enabled;
+    uint16_t active_step_off;
+
     pattern_step_t *steps;
 } pattern_t;
 
@@ -49,3 +55,4 @@ esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callba
 
 pattern_step_t *pattern_get_active_step(pattern_t *pattern);
 pattern_step_t *pattern_get_previous_step(pattern_t *pattern);
+pattern_step_t *pattern_get_next_step(pattern_t *pattern);

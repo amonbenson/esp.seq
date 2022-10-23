@@ -37,7 +37,8 @@
             "type": "shell",
             "command": "${config:taskCommands.esptool} --chip ${config:idf.adapterTargetName} -p ${config:idf.port} -b ${config:idf.flashBaudRate} --no-stub --after no_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build/espmidi.bin",
             "windows": {
-                "command": "${config:taskCommands.esptoolWin} --chip ${config:idf.adapterTargetName} -p ${config:idf.portWin} -b ${config:idf.flashBaudRate} --no-stub --after no_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build\\espmidi.bin"
+                //"command": "${config:taskCommands.esptoolWin} --chip ${config:idf.adapterTargetName} -p ${config:idf.portWin} -b ${config:idf.flashBaudRate} --no-stub --after no_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build\\espmidi.bin"
+                "command": "${config:taskCommands.esptoolWin} --chip ${config:idf.adapterTargetName} -p ${config:idf.portWin} -b ${config:idf.flashBaudRate} write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x10000 build\\espmidi.bin"
             },
             "options": {
                 "cwd": "${workspaceFolder}",

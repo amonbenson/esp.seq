@@ -104,7 +104,7 @@ void app_main(void) {
     
     // setup the sequencer
     const sequencer_config_t sequencer_config = {
-        .bpm = 10, // 120,
+        .bpm = 15,
         .event_handler = sequencer_event_handler,
         .event_handler_arg = NULL
     };
@@ -115,9 +115,12 @@ void app_main(void) {
     ESP_ERROR_CHECK(track_set_active_pattern(track, 0));
 
     pattern_t *pattern = track_get_active_pattern(track);
-    for (uint16_t i = 0; i < pattern->config.step_length; i++) {
-        pattern->steps[i].state.note = 60 + i;
-        pattern->steps[i].state.velocity = 127;
+    for (int i = 0; i < pattern->config.step_length; i++) {
+        pattern_step_t *step = &pattern->steps[i];
+        step->atomic.note = 60 + i;
+        step->atomic.velocity = 127;
+        step->gate = 64;
+        step->probability = 64;
     }
 
     ESP_ERROR_CHECK(sequencer_play(&sequencer));

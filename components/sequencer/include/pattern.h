@@ -6,6 +6,7 @@
 
 
 #define PATTERN_DEFAULT_CONFIG() ((pattern_config_t) { \
+    .type = PATTERN_TYPE_MELODIC, \
     .step_length = 16, \
     .resolution = SEQ_TICKS_PER_SIXTEENTH_NOTE \
 })
@@ -28,7 +29,13 @@ typedef struct {
 typedef void (*pattern_step_change_callback_t)(void *arg, pattern_atomic_step_t step);
 
 
+typedef enum {
+    PATTERN_TYPE_MELODIC,
+    PATTERN_TYPE_DRUM
+} pattern_type_t;
+
 typedef struct {
+    pattern_type_t type;
     uint16_t step_length;
     uint16_t resolution;
 } pattern_config_t;

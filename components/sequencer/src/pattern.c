@@ -71,25 +71,20 @@ esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callba
 
     // start playing a step
     if (pattern->substep_position == 0) {
-        // decide if the step should play
+        // decide if the step should be enabled and when it should stop playing
         pattern->active_step_enabled = step->probability == 127 || seq_rand() % 128 < step->probability;
-
-        // set the off position
         pattern->active_step_off = 1 + pattern->substep_position + step->gate * (pattern->config.resolution - 1) / 127;
 
         if (pattern->active_step_enabled) {
             // invoke the note on callback
-            callback(callback_arg, pattern_get_active_step(pattern)->atomic);
+            callback(callback_arg, step->atomic);
         }
     }
 
     // stop playing a step (if step = 128, this will never be called)
     if (pattern->substep_position == pattern->active_step_off && pattern->active_step_enabled) {
         // invoke the note off callback
-        callback(callback_arg, (pattern_atomic_step_t) {
-            .note = step->atomic.note,
-            .velocity = 0
-        });
+        callback(callback_arg, (pattern_atomic_step_t) { 0 });
     }
 
     // move to the next substep

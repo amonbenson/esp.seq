@@ -41,13 +41,10 @@ uint32_t velocity_to_millivolts(uint32_t velocity) {
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    uint32_t playhead;
-    pattern_atomic_step_t *step;
-
     if (event_base == SEQUENCER_EVENT) {
         switch (event_id) {
-            case SEQUENCER_TICK_EVENT:
-                playhead = *(uint32_t *) event_data;
+            case SEQUENCER_TICK_EVENT:;
+                uint32_t playhead = *(uint32_t *) event_data;
                 //ESP_LOGI(TAG, "tick %d", playhead);
                 break;
             case SEQUENCER_PLAY_EVENT:
@@ -68,16 +65,15 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
 
     if (event_base == TRACK_EVENT) {
         switch (event_id) {
-            case TRACK_NOTE_ON_EVENT:
-                step = (pattern_atomic_step_t *) event_data;
-                ESP_LOGI(TAG, "note on %d %d", step->note, step->note);
-                output_set(&output, 0, 0, note_to_millivolts(step->note));
-                output_set(&output, 0, 1, velocity_to_millivolts(step->velocity));
+            case TRACK_NOTE_CHANGE_EVENT:;
+                uint8_t note = *(uint8_t *) event_data;
+                ESP_LOGI(TAG, "note: %d", note);
+                output_set(&output, 0, 0, note_to_millivolts(note));
                 break;
-            case TRACK_NOTE_OFF_EVENT:
-                step = (pattern_atomic_step_t *) event_data;
-                ESP_LOGI(TAG, "note off %d", step->note);
-                output_set(&output, 0, 1, velocity_to_millivolts(step->velocity));
+            case TRACK_VELOCITY_CHANGE_EVENT:;
+                uint8_t velocity = *(uint8_t *) event_data;
+                ESP_LOGI(TAG, "velocity: %d", velocity);
+                output_set(&output, 0, 1, velocity_to_millivolts(velocity));
                 break;
             default:
                 ESP_LOGE(TAG, "unknown track event: %d", event_id);

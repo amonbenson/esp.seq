@@ -37,39 +37,36 @@ static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t 
     track_t *track = (track_t *) arg;
     esp_err_t ret;
 
-    // nothing to update
-    if (step.note == track->active_step.note && step.velocity == track->active_step.velocity) {
-        return;
-    }
+    // nothing to update (consecutive steps with the same note and velocity)
+    if (!track->config.sequencer_event_loop) return;
 
-    // release any previous note
-    if (track->active_step.velocity && track->config.sequencer_event_loop) {
+    // update the note only if it's actually audible (velocity > 0)
+    if (track->active_step.note != step.note && step.velocity > 0) {
         ret = esp_event_post_to(track->config.sequencer_event_loop,
             TRACK_EVENT,
-            TRACK_NOTE_OFF_EVENT,
-            &track->active_step,
-            sizeof(track->active_step),
+            TRACK_NOTE_CHANGE_EVENT,
+            &step.note,
+            sizeof(step.note),
             portMAX_DELAY);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "failed to post note off event: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "failed to post note change event: %s", esp_err_to_name(ret));
         }
+        track->active_step.note = step.note;
     }
 
-    // press the new note
-    if (step.velocity && track->config.sequencer_event_loop) {
+    // update the velocity
+    if (track->active_step.velocity != step.velocity) {
         ret = esp_event_post_to(track->config.sequencer_event_loop,
             TRACK_EVENT,
-            TRACK_NOTE_ON_EVENT,
-            &step,
-            sizeof(step),
+            TRACK_VELOCITY_CHANGE_EVENT,
+            &step.velocity,
+            sizeof(step.velocity),
             portMAX_DELAY);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "failed to post note on event: %s", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "failed to post velocity change event: %s", esp_err_to_name(ret));
         }
+        track->active_step.velocity = step.velocity;
     }
-
-    // update the currently active step
-    track->active_step = step;
 }
 
 esp_err_t track_tick(track_t *track, uint32_t playhead) {

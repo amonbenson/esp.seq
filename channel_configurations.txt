@@ -1,7 +1,0 @@
-output layout definition:
-    uint8 note_count
-    uint8 drum_count
-    bool velocity_enabled
-    bool trigger_enabled
-    set_drum(id, value)
-    set_note(id, value)

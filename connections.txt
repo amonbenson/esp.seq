@@ -1,0 +1,36 @@
+ESP Pins:
+
+Outputs (variable):
+    GPIO1...8   Analog (PWM)
+    GPIO9...16  Digital
+
+Status LED (variabe):
+    GPIO17      Status LED
+
+USB (fixed):
+    GPIO19  D-
+    GPIO20  D+
+
+SD SPI (fixed):
+    GPIO34  CS
+    GPIO35  MOSI
+    GPIO36  SCK
+    GPIO37  MISO
+
+JTAG (fixed): (see for connector info: https://docs.espressif.com/projects/espressif-esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html)
+    GPIO39  MTCK
+    GPIO40  MTDO
+    GPIO41  MTDI
+    GPIO42  MTMS
+
+
+
+
+
+output layout definition:
+    uint8 note_count
+    uint8 drum_count
+    bool velocity_enabled
+    bool trigger_enabled
+    set_drum(id, value)
+    set_note(id, value)

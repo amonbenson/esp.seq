@@ -8,25 +8,87 @@
 static const char *TAG = "espmidi";
 
 
-#define OUTPUT_MATRIX_COLUMNS 1
-#define OUTPUT_MATRIX_ROWS 2
+#define OUTPUT_COLUMNS 1
+#define OUTPUT_ROWS 2
 
 
-static const gpio_num_t output_analog_pins[] = { 2 };
-static const gpio_num_t output_digital_pins[] = { 3 };
+static const output_port_config_t output_port_configs[] = {
+    { .type = OUTPUT_ANALOG, .pin = 2, .vmax_mv = 4840 },
+    { .type = OUTPUT_ANALOG, .pin = 3, .vmax_mv = 5000 }
+};
+
+uint8_t testseq_notes[] = {
+    12,
+    12,
+    10,
+    10,
+    12,
+    12,
+    10,
+    10,
+    12,
+    12,
+    0,
+    0,
+    15,
+    15,
+    0,
+    0,
+    12,
+    12,
+    10,
+    10,
+    12,
+    12,
+    10,
+    10,
+    12,
+    12,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+};
+uint8_t testseq_vels[] = {
+    127,
+    64,
+    127,
+    64,
+    127,
+    64,
+    127,
+    64,
+    127,
+    127,
+    0,
+    0,
+    127,
+    127,
+    0,
+    0,
+    127,
+    64,
+    127,
+    64,
+    127,
+    64,
+    127,
+    64,
+    127,
+    64,
+    64,
+    127,
+    127,
+    127,
+    0,
+    0
+};
 
 
 static output_t output;
 static sequencer_t sequencer;
-
-
-uint32_t note_to_millivolts(uint32_t note) {
-    return note * 1000 / 12;
-}
-
-uint32_t velocity_to_millivolts(uint32_t velocity) {
-    return velocity * OUTPUT_ANALOG_MILLIVOLTS / 127;
-}
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -56,13 +118,13 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         switch (event_id) {
             case TRACK_NOTE_CHANGE_EVENT:;
                 uint8_t note = *(uint8_t *) event_data;
-                ESP_LOGI(TAG, "note: %d", note);
-                output_set(&output, 0, 0, note_to_millivolts(note));
+                //ESP_LOGI(TAG, "note: %d", note);
+                output_set_voltage(&output, 0, 0, note * 1000 / 12);
                 break;
             case TRACK_VELOCITY_CHANGE_EVENT:;
                 uint8_t velocity = *(uint8_t *) event_data;
                 //ESP_LOGI(TAG, "velocity: %d", velocity);
-                output_set(&output, 0, 1, velocity_to_millivolts(velocity));
+                output_set_voltage(&output, 0, 1, velocity * 5000 / 127);
                 break;
             default:
                 ESP_LOGE(TAG, "unknown track event: %d", event_id);
@@ -75,15 +137,18 @@ void app_main(void) {
     ESP_LOGI(TAG, "ESP MIDI v2.0");
 
     // setup the output unit
+    uint8_t num_port_configs = sizeof(output_port_configs) / sizeof(output_port_configs[0]);
+    uint8_t num_ports = OUTPUT_COLUMNS * OUTPUT_ROWS;
+    if (num_port_configs != num_ports) {
+        ESP_LOGE(TAG, "invalid output configuration: %d ports != %d cols x %d rows",
+            num_port_configs, OUTPUT_COLUMNS, OUTPUT_ROWS);
+        return;
+    }
+
     const output_config_t output_config = {
-        .analog_pins = output_analog_pins,
-        .num_analog_pins = sizeof(output_analog_pins) / sizeof(gpio_num_t),
-        .digital_pins = output_digital_pins,
-        .num_digital_pins = sizeof(output_digital_pins) / sizeof(gpio_num_t),
-        .matrix_size = {
-            .columns = OUTPUT_MATRIX_COLUMNS,
-            .rows = OUTPUT_MATRIX_ROWS
-        }
+        .num_columns = OUTPUT_COLUMNS,
+        .num_rows = OUTPUT_ROWS,
+        .port_configs = output_port_configs
     };
     ESP_ERROR_CHECK(output_init(&output, &output_config));
     
@@ -95,93 +160,24 @@ void app_main(void) {
     };
     ESP_ERROR_CHECK(sequencer_init(&sequencer, &sequencer_config));
 
-    // test sequence
+    // setup a test sequence
     track_t *track = &sequencer.tracks[0];
     ESP_ERROR_CHECK(track_set_active_pattern(track, 0));
 
     pattern_t *pattern = track_get_active_pattern(track);
 
-    uint8_t notes[] = {
-        12,
-        12,
-        10,
-        10,
-        12,
-        12,
-        10,
-        10,
-        12,
-        12,
-        0,
-        0,
-        15,
-        15,
-        0,
-        0,
-        12,
-        12,
-        10,
-        10,
-        12,
-        12,
-        10,
-        10,
-        12,
-        12,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-    };
-    uint8_t velocities[] = {
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        0,
-        0,
-        127,
-        127,
-        0,
-        0,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        127,
-        0,
-        0
-    };
+    uint16_t testseq_length = sizeof(testseq_notes) / sizeof(testseq_notes[0]);
+    ESP_ERROR_CHECK(pattern_resize(pattern, testseq_length));
 
-    /* uint8_t notes[] = { 0, 12, 24 };
-    uint8_t velocities[] = { 127, 127, 127 }; */
-
-    pattern_resize(pattern, sizeof(notes) / sizeof(int8_t));
     for (int i = 0; i < pattern->config.step_length; i++) {
         pattern_step_t *step = &pattern->steps[i];
-        step->atomic.note = notes[i];
-        step->atomic.velocity = velocities[i];
-        step->gate = 10;
+        step->atomic.note = testseq_notes[i];
+        step->atomic.velocity = testseq_vels[i];
+        step->gate = 64;
         step->probability = 127;
     }
 
+    // start the sequencer
     ESP_ERROR_CHECK(sequencer_play(&sequencer));
 
     vTaskDelete(NULL);

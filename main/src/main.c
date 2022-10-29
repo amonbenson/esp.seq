@@ -1,6 +1,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
+#include <store.h>
 #include <output.h>
 #include <sequencer.h>
 
@@ -8,13 +9,13 @@
 static const char *TAG = "espmidi";
 
 
-#define OUTPUT_COLUMNS 1
-#define OUTPUT_ROWS 2
+#define OUTPUT_COLUMNS 4
+#define OUTPUT_ROWS 4
 
 
 static const output_port_config_t output_port_configs[] = {
+    { .type = OUTPUT_ANALOG, .pin = 1, .vmax_mv = 4840 },
     { .type = OUTPUT_ANALOG, .pin = 2, .vmax_mv = 4840 },
-    { .type = OUTPUT_ANALOG, .pin = 3, .vmax_mv = 5000 }
 };
 
 uint8_t testseq_notes[] = {
@@ -135,6 +136,9 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
 
 void app_main(void) {
     ESP_LOGI(TAG, "ESP MIDI v2.0");
+
+    // setup the file store
+    //ESP_ERROR_CHECK(store_init());
 
     // setup the output unit
     uint8_t num_port_configs = sizeof(output_port_configs) / sizeof(output_port_configs[0]);

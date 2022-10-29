@@ -9,13 +9,13 @@
 static const char *TAG = "espmidi";
 
 
-#define OUTPUT_COLUMNS 4
-#define OUTPUT_ROWS 4
+#define OUTPUT_COLUMNS 1
+#define OUTPUT_ROWS 2
 
 
 static const output_port_config_t output_port_configs[] = {
-    { .type = OUTPUT_ANALOG, .pin = 1, .vmax_mv = 4840 },
     { .type = OUTPUT_ANALOG, .pin = 2, .vmax_mv = 4840 },
+    { .type = OUTPUT_ANALOG, .pin = 3, .vmax_mv = 4840 },
 };
 
 uint8_t testseq_notes[] = {

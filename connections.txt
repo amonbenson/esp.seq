@@ -3,18 +3,27 @@ ESP Pins:
 GPIO (Output Ports):
     GPIO1...16  Analog / Digital
 
-UART1 (MIDI):
+UART1 (Midi):
     GPIO17  TX
     GPIO18  RX
 
-USB:
+USB (Midi):
     GPIO19  D-
     GPIO20  D+
 
-SD SPI:
+SPI (Embedded Flash and PSRAM):
+    GPIO26  SPICS1 (PSRAM)
+    GPIO27  SPIHD
+    GPIO28  SPIWP
+    GPIO29  SPICS0 (Flash)
+    GPIO30  SPICLK
+    GPIO31  SPIQ
+    GPIO32  SPID
+
+FSPI (SD Card):
     GPIO34  CS
     GPIO35  MOSI
-    GPIO36  SCK
+    GPIO36  CLK
     GPIO37  MISO
 
 JTAG: (see for connector info: https://docs.espressif.com/projects/espressif-esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html)
@@ -24,5 +33,30 @@ JTAG: (see for connector info: https://docs.espressif.com/projects/espressif-esp
     GPIO42  MTMS
 
 UART0 (Programming):
+    GPIO0   Boot
+    EN      Reset
     GPIO43  TXD
     GPIO44  RXD
+
+GPIO (LEDs):
+    GPIO21  Status
+    GPIO33  C1
+    GPIO38  C2
+    GPIO45  C3
+    GPIO46  C4
+
+
+ESP32-S2-Saola Schematic:
+    https://dl.espressif.com/dl/schematics/ESP32-S2-SAOLA-1_V1.1_schematics.pdf
+
+ESP32-Devkit Schematic:
+    https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch.pdf
+
+JLC PCB Parts:
+    BC547 equivalent: SS8050
+    FT232 equivalent: CP2102 (see saola/devkit schematic for pinout)
+    Optocoupler (midi in, 4N28 equivalent): 6N137 (pullup: 5.6k to 3.3V instead of 10k to 5V)
+    Diode (midi in): 1N4148: in stock
+    5V -> 3.3V Regulator: AMS117 (22uF ceramic on both sides)
+
+KICAD: Add field "LCSC" to symbols with part number from JLCPCB

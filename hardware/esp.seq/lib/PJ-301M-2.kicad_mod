@@ -1,4 +1,4 @@
-(footprint "Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical_CircularHoles" (version 20211014) (generator pcbnew)
+(footprint "PJ-301M-2" (version 20211014) (generator pcbnew)
   (layer "F.Cu")
   (tedit 61FECFD2)
   (descr "TRS 3.5mm, vertical, Thonkiconn, PCB mount, (http://www.qingpu-electronics.com/en/products/WQP-PJ398SM-362.html)")
@@ -98,14 +98,9 @@
       )
     )
   )
-  (model "${KICAD6_3DMODEL_DIR}/Connector_Audio.3dshapes/Jack_3.5mm_QingPu_WQP-PJ398SM_Vertical.wrl"
-    (offset (xyz 0 0 0))
-    (scale (xyz 1 1 1))
-    (rotate (xyz 0 0 0))
-  )
   (model "${KIPRJMOD}/lib/PJ301M-12 Thonkiconn v0.2.stp"
-    (offset (xyz 0 -7 -1.5))
+    (offset (xyz 0 -7 0))
     (scale (xyz 1 1 1))
-    (rotate (xyz 180 0 0))
+    (rotate (xyz 0 0 180))
   )
 )

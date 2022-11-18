@@ -1,9 +1,9 @@
 {
   "C_Cpp.intelliSenseEngine": "Default",
-  "idf.portWin": "COM4",
+  "idf.portWin": "COM3",
   "idf.flashBaudRate": "460800",
   "idf.adapterTargetName": "esp32s2",
-  "idf.flashType": "DFU",
+  "idf.flashType": "UART",
   "files.associations": {
     "*.h": "c",
     "*.c": "c",

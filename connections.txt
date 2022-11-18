@@ -39,11 +39,11 @@ UART0 (Programming):
     GPIO44  RXD
 
 GPIO (LEDs):
-    GPIO21  Status
-    GPIO33  C1
-    GPIO38  C2
-    GPIO45  C3
-    GPIO46  C4
+    GPIO38  Status
+    GPIO39  Channel 1
+    GPIO40  Channel 2
+    GPIO41  Channel 3
+    GPIO42  Channel 4
 
 
 ESP32-S2-Saola Schematic:
@@ -52,11 +52,31 @@ ESP32-S2-Saola Schematic:
 ESP32-Devkit Schematic:
     https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch.pdf
 
+MIDI Circuit for 3.3V:
+    https://www.pjrc.com/teensy/td_libs_MIDI_sch_t3.png
+
 JLC PCB Parts:
     BC547 equivalent: SS8050
     FT232 equivalent: CP2102 (see saola/devkit schematic for pinout)
     Optocoupler (midi in, 4N28 equivalent): 6N137 (pullup: 5.6k to 3.3V instead of 10k to 5V)
     Diode (midi in): 1N4148: in stock
-    5V -> 3.3V Regulator: AMS117 (22uF ceramic on both sides)
+    5V -> 3.3V Regulator: AMS1117-3.3 (22uF ceramic on both sides)
 
 KICAD: Add field "LCSC" to symbols with part number from JLCPCB
+
+
+
+
+PCB Bus:
+    Top (USB):
+        +5V
+        USB_D+
+        USB_D-
+        GND
+    Bottom (SD):
+        +3.3V
+        FSPI_CS
+        FSPI_CLK
+        FSPI_MOSI
+        FSPI_MISO
+        GND

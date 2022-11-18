@@ -120,66 +120,48 @@ static controller_t *controller = NULL;
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    if (event_base == SEQUENCER_EVENT) {
-        switch (event_id) {
-            case SEQUENCER_TICK_EVENT:;
-                uint32_t playhead = *(uint32_t *) event_data;
-                //ESP_LOGI(TAG, "tick %d", playhead);
-                break;
-            case SEQUENCER_PLAY_EVENT:
-                ESP_LOGI(TAG, "play");
-                break;
-            case SEQUENCER_PAUSE_EVENT:
-                ESP_LOGI(TAG, "pause");
-                break;
-            case SEQUENCER_SEEK_EVENT:
-                playhead = *(uint32_t *) event_data;
-                ESP_LOGI(TAG, "seek %d", playhead);
-                break;
-            default:
-                ESP_LOGE(TAG, "unknown sequencer event: %d", event_id);
-                break;
-        }
-    }
-
+    // let the output handle note and velocity events
     if (event_base == TRACK_EVENT) {
         switch (event_id) {
             case TRACK_NOTE_CHANGE_EVENT:;
-                uint8_t note = *(uint8_t *) event_data;
-                //ESP_LOGI(TAG, "note: %d", note);
-                output_set_voltage(&output, 0, 0, note * 1000 / 12);
+                track_note_change_event_t note_event = *(track_note_change_event_t *) event_data;
+                output_set_voltage(&output, 0, 0, OUTPUT_NOTE_TO_VOLTAGE(note_event.note));
                 break;
             case TRACK_VELOCITY_CHANGE_EVENT:;
-                uint8_t velocity = *(uint8_t *) event_data;
-                //ESP_LOGI(TAG, "velocity: %d", velocity);
-                output_set_voltage(&output, 0, 1, velocity * 5000 / 127);
+                track_velocity_change_event_t velocity_event = *(track_velocity_change_event_t *) event_data;
+                output_set_voltage(&output, 0, 1, OUTPUT_VELOCITY_TO_VOLTAGE(velocity_event.velocity));
                 break;
             default:
                 ESP_LOGE(TAG, "unknown track event: %d", event_id);
                 break;
         }
     }
+
+    // forward event to the controller
+    if (controller != NULL) {
+        controller_sequencer_event(controller, event_base, event_id, event_data);
+    }
+}
+
+esp_err_t controller_midi_send_callback(controller_t *controller, const midi_message_t *message) {
+    // usb midi <-- controller
+    return usb_midi_send(&usb_midi, message);
 }
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
-    // create a generic controller
+    // create a usb controller
     // TODO: choose controller based on device descriptor
-    controller = controller_create(&controller_class_generic, &sequencer, &output);
+    controller = controller_create(&controller_class_generic, &sequencer, &output, &controller_midi_send_callback);
 }
 
 void usb_midi_disconnected_callback(const usb_device_desc_t *desc) {
-    // free the controller
+    // destroy the usb controller
     controller_free(controller);
     controller = NULL;
 }
 
 void usb_midi_recv_callback(const midi_message_t *message) {
-    if (controller == NULL) {
-        ESP_LOGE(TAG, "Invalid state: controller is NULL, but received MIDI message!");
-        return;
-    }
-
-    // pass the message on to the controller
+    // usb midi --> controller
     controller_midi_recv(controller, message);
 }
 

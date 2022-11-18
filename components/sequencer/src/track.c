@@ -42,11 +42,15 @@ static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t 
 
     // update the note only if it's actually audible (velocity > 0)
     if (track->active_step.note != step.note && step.velocity > 0) {
+        track_note_change_event_t event = {
+            .track = track,
+            .note = step.note
+        };
         ret = esp_event_post_to(track->config.sequencer_event_loop,
             TRACK_EVENT,
             TRACK_NOTE_CHANGE_EVENT,
-            &step.note,
-            sizeof(step.note),
+            &event,
+            sizeof(event),
             portMAX_DELAY);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "failed to post note change event: %s", esp_err_to_name(ret));
@@ -56,11 +60,15 @@ static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t 
 
     // update the velocity
     if (track->active_step.velocity != step.velocity) {
+        track_velocity_change_event_t event = {
+            .track = track,
+            .velocity = step.velocity
+        };
         ret = esp_event_post_to(track->config.sequencer_event_loop,
             TRACK_EVENT,
             TRACK_VELOCITY_CHANGE_EVENT,
-            &step.velocity,
-            sizeof(step.velocity),
+            &event,
+            sizeof(event),
             portMAX_DELAY);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "failed to post velocity change event: %s", esp_err_to_name(ret));

@@ -21,3 +21,4 @@ esp_err_t controller_generic_init(controller_generic_t *controller);
 esp_err_t controller_generic_free(controller_generic_t *controller);
 
 esp_err_t controller_generic_midi_recv(controller_generic_t *controller, const midi_message_t *message);
+esp_err_t controller_generic_sequencer_event(controller_generic_t *controller, esp_event_base_t event_base, int32_t event_id, void *event_data);

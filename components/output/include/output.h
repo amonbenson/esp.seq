@@ -11,6 +11,9 @@
 #define OUTPUT_MAX_ANALOG_PORTS LEDC_CHANNEL_MAX
 #define OUTPUT_MAX_PORTS GPIO_NUM_MAX
 
+#define OUTPUT_NOTE_TO_VOLTAGE(note) ((note) * 1000 / 12)
+#define OUTPUT_VELOCITY_TO_VOLTAGE(velocity) ((velocity) * 5000 / 127)
+
 //#define OUTPUT_ANALOG_MILLIVOLTS 4840 // 5.5V = 3.3V * 1.67 gain
 
 

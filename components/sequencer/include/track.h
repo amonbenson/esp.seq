@@ -9,12 +9,6 @@
 
 #define TRACK_DEFAULT_CONFIG() ((track_config_t) { })
 
-ESP_EVENT_DECLARE_BASE(TRACK_EVENT);
-enum {
-    TRACK_NOTE_CHANGE_EVENT,
-    TRACK_VELOCITY_CHANGE_EVENT
-};
-
 
 typedef struct {
     esp_event_loop_handle_t sequencer_event_loop;
@@ -29,6 +23,23 @@ typedef struct {
     int active_pattern;
     pattern_atomic_step_t active_step;
 } track_t;
+
+
+ESP_EVENT_DECLARE_BASE(TRACK_EVENT);
+enum {
+    TRACK_NOTE_CHANGE_EVENT,
+    TRACK_VELOCITY_CHANGE_EVENT
+};
+
+typedef struct {
+    track_t *track;
+    uint8_t note;
+} track_note_change_event_t;
+
+typedef struct {
+    track_t *track;
+    uint8_t velocity;
+} track_velocity_change_event_t;
 
 
 esp_err_t track_init(track_t *track, const track_config_t *config);

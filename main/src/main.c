@@ -115,7 +115,8 @@ uint16_t bpm = 30;*/
 static usb_midi_t usb_midi;
 static output_t output;
 static sequencer_t sequencer;
-static controller_t *controller;
+
+static controller_t *controller = NULL;
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -163,16 +164,23 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
     // create a generic controller
     // TODO: choose controller based on device descriptor
-    controller = controller_create(&controller_class_generic);
+    controller = controller_create(&controller_class_generic, &sequencer, &output);
 }
 
 void usb_midi_disconnected_callback(const usb_device_desc_t *desc) {
     // free the controller
     controller_free(controller);
+    controller = NULL;
 }
 
 void usb_midi_recv_callback(const midi_message_t *message) {
-    ESP_LOGI(TAG, "USB MIDI recv: cmd: %d, chan: %d, data: %d %d", message->command, message->channel, message->body[0], message->body[1]);
+    if (controller == NULL) {
+        ESP_LOGE(TAG, "Invalid state: controller is NULL, but received MIDI message!");
+        return;
+    }
+
+    // pass the message on to the controller
+    controller_midi_recv(controller, message);
 }
 
 void app_main(void) {

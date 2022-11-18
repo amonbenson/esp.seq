@@ -113,7 +113,7 @@
                 "clear": true
             },
             "problemMatcher": [],
-            "dependsOn": ["terminate", "flash", "monitor"],
+            "dependsOn": ["terminate", "build", "flash", "monitor"],
             "dependsOrder": "sequence"
         },
         {

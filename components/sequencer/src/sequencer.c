@@ -137,21 +137,15 @@ esp_err_t sequencer_pause(sequencer_t *sequencer) {
 }
 
 esp_err_t sequencer_set_bpm(sequencer_t *sequencer, uint16_t bpm) {
-    bool was_playing = sequencer->playing;
-
-    // stop the sequencer
-    if (was_playing) {
-        ESP_RETURN_ON_ERROR(sequencer_pause(sequencer),
-            TAG, "failed to pause");
-    }
-
     // update the bpm
     sequencer->config.bpm = bpm;
 
-    // restart the sequencer
-    if (was_playing) {
-        ESP_RETURN_ON_ERROR(sequencer_play(sequencer),
-            TAG, "failed to play");
+    // restart the timer
+    if (sequencer->playing) {
+        ESP_RETURN_ON_ERROR(esp_timer_stop(sequencer->timer),
+            TAG, "failed to stop timer");
+        ESP_RETURN_ON_ERROR(esp_timer_start_periodic(sequencer->timer, sequencer_get_tick_period_us(sequencer)),
+            TAG, "failed to start timer");
     }
 
     return ESP_OK;

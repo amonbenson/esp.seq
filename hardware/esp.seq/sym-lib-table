@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name "lib")(type "KiCad")(uri "${KIPRJMOD}/lib/lib.kicad_sym")(options "")(descr ""))
+  (lib (name "DM3CS-SF")(type "KiCad")(uri "${KIPRJMOD}/lib/DM3CS-SF.kicad_sym")(options "")(descr ""))
+)

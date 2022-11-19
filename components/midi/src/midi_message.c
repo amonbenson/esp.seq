@@ -15,7 +15,7 @@ const uint8_t midi_system_common_message_lengths[8] = {
 };
 
 
-uint8_t midi_message_required_length(midi_command_t command) {
+uint8_t midi_message_required_length(uint8_t command) {
     if (MIDI_COMMAND_IS_CHANNEL_VOICE(command)) {
         return midi_channel_voice_message_lengths[(command & 0x70) >> 4];
     } else if (MIDI_COMMAND_IS_SYSTEM_COMMON(command)) {
@@ -26,9 +26,7 @@ uint8_t midi_message_required_length(midi_command_t command) {
 }
 
 esp_err_t midi_message_decode(const uint8_t *data, size_t length, midi_message_t *message) {
-    midi_command_t command;
-    midi_channel_t channel;
-    uint8_t required_length, piece, value, rate;
+    uint8_t command, channel, required_length, piece, value, rate;
 
     if (length < 1) return ESP_ERR_INVALID_SIZE;
 
@@ -98,9 +96,7 @@ esp_err_t midi_message_decode(const uint8_t *data, size_t length, midi_message_t
 }
 
 esp_err_t midi_message_encode(const midi_message_t *message, uint8_t *data, size_t length) {
-    midi_command_t command;
-    midi_channel_t channel;
-    uint8_t required_length, piece, value;
+    uint8_t command, channel, required_length, piece, value;
 
     command = message->command;
     channel = message->channel;

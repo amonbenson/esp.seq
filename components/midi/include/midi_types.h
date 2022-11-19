@@ -36,8 +36,9 @@
 #define MIDI_TCQF_RATE_30 3
 
 
-typedef uint8_t midi_command_t;
+/* typedef uint8_t midi_command_t;
 typedef uint8_t midi_channel_t;
 typedef uint8_t midi_note_t;
+typedef int8_t midi_signed_note_t;
 typedef uint8_t midi_velocity_t;
-typedef uint8_t midi_control_t;
+typedef uint8_t midi_control_t; */

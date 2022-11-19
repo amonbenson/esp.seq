@@ -2,15 +2,31 @@
 #include <stdlib.h>
 #include "esp_log.h"
 #include "esp_check.h"
+#include "usb.h"
 
 
 static const char *TAG = "controller";
 
 
+bool controller_supported(const controller_class_t *class, const usb_device_desc_t *desc) {
+    return class->supported(desc);
+}
+
+controller_t *controller_create_from_desc(const controller_class_t *classes[], const usb_device_desc_t *desc, const controller_config_t *config) {
+    // instantiate the first supported class
+    for (int i = 0; classes[i] != NULL; i++) {
+        if (controller_supported(classes[i], desc)) {
+            return controller_create(classes[i], config);
+        }
+    }
+
+    // device not supported
+    ESP_LOGE(TAG, "device not supported");
+    return NULL;
+}
+
 controller_t *controller_create(const controller_class_t *class,
-        sequencer_t *sequencer,
-        output_t *output,
-        controller_midi_send_function midi_send) {
+        const controller_config_t *config) {
     controller_t *controller = malloc(class->size);
     if (controller == NULL) {
         ESP_LOGE(TAG, "Failed to allocate memory for controller");
@@ -18,9 +34,7 @@ controller_t *controller_create(const controller_class_t *class,
     }
 
     controller->class = class;
-    controller->sequencer = sequencer;
-    controller->output = output;
-    controller->midi_send = midi_send;
+    controller->config = *config;
 
     esp_err_t ret = class->init(controller);
     if (ret != ESP_OK) {

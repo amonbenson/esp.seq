@@ -5,31 +5,31 @@
 
 
 typedef struct {
-    midi_command_t command;
-    midi_channel_t channel;
+    uint8_t command;
+    uint8_t channel;
     union {
         uint8_t body[2];
         struct {
-            midi_note_t note;
-            midi_velocity_t velocity;
+            uint8_t note;
+            uint8_t velocity;
         } note_off;
         struct {
-            midi_note_t note;
-            midi_velocity_t velocity;
+            uint8_t note;
+            uint8_t velocity;
         } note_on;
         struct {
-            midi_note_t note;
-            midi_velocity_t pressure;
+            uint8_t note;
+            uint8_t pressure;
         } poly_key_pressure;
         struct {
-            midi_control_t control;
+            uint8_t control;
             uint8_t value;
         } control_change;
         struct {
             uint8_t program;
         } program_change;
         struct {
-            midi_velocity_t pressure;
+            uint8_t pressure;
         } channel_pressure;
         struct {
             int16_t value;

@@ -9,6 +9,7 @@
 #include <sequencer.h>
 
 #include <controller.h>
+#include <controllers/launchpad.h>
 #include <controllers/generic.h>
 
 
@@ -20,8 +21,14 @@ static const char *TAG = "espmidi";
 
 
 static const output_port_config_t output_port_configs[] = {
-    { .type = OUTPUT_ANALOG, .pin = 2, .vmax_mv = 4840 },
+    { .type = OUTPUT_ANALOG, .pin = 2, .vmax_mv = 5000 /* 4840 */ },
     { .type = OUTPUT_ANALOG, .pin = 3, .vmax_mv = 4840 },
+};
+
+static const controller_class_t *controller_classes[] = {
+    &controller_class_launchpad,
+    &controller_class_generic,
+    NULL
 };
 
 uint8_t testseq_notes[] = {
@@ -120,7 +127,7 @@ static controller_t *controller = NULL;
 
 
 void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    // let the output handle note and velocity events
+    // sequencer --> output
     if (event_base == TRACK_EVENT) {
         switch (event_id) {
             case TRACK_NOTE_CHANGE_EVENT:;
@@ -137,7 +144,7 @@ void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t eve
         }
     }
 
-    // forward event to the controller
+    // sequencer --> controller
     if (controller != NULL) {
         controller_sequencer_event(controller, event_base, event_id, event_data);
     }
@@ -149,9 +156,18 @@ esp_err_t controller_midi_send_callback(controller_t *controller, const midi_mes
 }
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
-    // create a usb controller
-    // TODO: choose controller based on device descriptor
-    controller = controller_create(&controller_class_generic, &sequencer, &output, &controller_midi_send_callback);
+    const controller_config_t config = {
+        .sequencer = &sequencer,
+        .output = &output,
+        .midi_send = controller_midi_send_callback
+    };
+
+    // create the usb controller
+    controller = controller_create_from_desc(controller_classes, desc, &config);
+    if (controller == NULL) {
+        ESP_LOGE(TAG, "failed to create controller");
+        return;
+    }
 }
 
 void usb_midi_disconnected_callback(const usb_device_desc_t *desc) {
@@ -224,7 +240,7 @@ void app_main(void) {
     }
 
     // start the sequencer
-    ESP_ERROR_CHECK(sequencer_play(&sequencer));
+    //ESP_ERROR_CHECK(sequencer_play(&sequencer));
 
     vTaskDelete(NULL);
 }

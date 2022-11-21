@@ -41,7 +41,8 @@
     "condition_variable": "c",
     "mutex": "c",
     "chrono": "c",
-    "fstream": "c"
+    "fstream": "c",
+    "typeinfo": "c"
   },
   "cmakeExplorer.buildDir": "build",
   "taskCommands": {

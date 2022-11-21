@@ -66,7 +66,7 @@ esp_err_t pattern_seek(pattern_t *pattern, uint32_t playhead) {
     return ESP_OK;
 }
 
-esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callback, void *callback_arg) {
+esp_err_t pattern_tick(pattern_t *pattern) {
     pattern_step_t *step = pattern_get_active_step(pattern);
 
     // start playing a step
@@ -76,15 +76,14 @@ esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callba
         pattern->active_step_off = 1 + pattern->substep_position + step->gate * (pattern->config.resolution - 1) / 127;
 
         if (pattern->active_step_enabled) {
-            // invoke the note on callback
-            callback(callback_arg, step->atomic);
+            // set the pattern state
+            pattern->state = step->atomic;
         }
     }
 
     // stop playing a step (if step = 128, this will never be called)
     if (pattern->substep_position == pattern->active_step_off && pattern->active_step_enabled) {
-        // invoke the note off callback
-        callback(callback_arg, (pattern_atomic_step_t) { 0 });
+        pattern->state = (pattern_atomic_step_t) { 0 };
     }
 
     // move to the next substep

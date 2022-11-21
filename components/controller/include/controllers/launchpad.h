@@ -16,10 +16,10 @@ typedef struct {
 } controller_launchpad_t;
 
 
-bool controller_launchpad_supported(const usb_device_desc_t *desc);
+bool controller_launchpad_supported(void *context, const usb_device_desc_t *desc);
 
-esp_err_t controller_launchpad_init(controller_launchpad_t *controller);
-esp_err_t controller_launchpad_free(controller_launchpad_t *controller);
+esp_err_t controller_launchpad_init(void *context);
+esp_err_t controller_launchpad_free(void *context);
 
-esp_err_t controller_launchpad_midi_recv(controller_launchpad_t *controller, const midi_message_t *message);
-esp_err_t controller_launchpad_sequencer_event(controller_launchpad_t *controller, esp_event_base_t event_base, int32_t event_id, void *event_data);
+esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *message);
+esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data);

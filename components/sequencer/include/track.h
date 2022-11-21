@@ -1,20 +1,30 @@
 #pragma once
 
 #include <esp_err.h>
-#include <esp_event.h>
 #include "pattern.h"
 
 
 #define TRACK_MAX_PATTERNS 16
 
-#define TRACK_DEFAULT_CONFIG() ((track_config_t) { })
+
+typedef enum {
+    TRACK_NOTE_CHANGE,
+    TRACK_VELOCITY_CHANGE
+} track_event_t;
+
+typedef struct track_t track_t;
+CALLBACK_DECLARE(track_event, esp_err_t,
+    track_event_t event, track_t *track, void *data);
 
 
 typedef struct {
-    esp_event_loop_handle_t sequencer_event_loop;
+    struct {
+        void *context;
+        CALLBACK_TYPE(track_event) event;
+    } callbacks;
 } track_config_t;
 
-typedef struct {
+struct track_t {
     track_config_t config;
     uint32_t playhead;
 
@@ -22,24 +32,7 @@ typedef struct {
 
     int active_pattern;
     pattern_atomic_step_t active_step;
-} track_t;
-
-
-ESP_EVENT_DECLARE_BASE(TRACK_EVENT);
-enum {
-    TRACK_NOTE_CHANGE_EVENT,
-    TRACK_VELOCITY_CHANGE_EVENT
 };
-
-typedef struct {
-    track_t *track;
-    uint8_t note;
-} track_note_change_event_t;
-
-typedef struct {
-    track_t *track;
-    uint8_t velocity;
-} track_velocity_change_event_t;
 
 
 esp_err_t track_init(track_t *track, const track_config_t *config);

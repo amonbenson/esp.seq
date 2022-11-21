@@ -6,21 +6,25 @@ static const char *TAG = "generic controller";
 
 const controller_class_t controller_class_generic = {
     .size = sizeof(controller_generic_t),
-    .supported = (controller_supported_function) controller_generic_supported,
-    .init = (controller_init_function) controller_generic_init,
-    .free = (controller_free_function) controller_generic_free,
-    .midi_recv = (controller_midi_recv_function) controller_generic_midi_recv,
-    .sequencer_event = (controller_sequencer_event_function) controller_generic_sequencer_event
+    .functions = {
+        .supported = controller_generic_supported,
+        .init = controller_generic_init,
+        .free = controller_generic_free,
+        .midi_recv = controller_generic_midi_recv,
+        .sequencer_event = controller_generic_sequencer_event
+    }
 };
 
 
-bool controller_generic_supported(const usb_device_desc_t *desc) {
+bool controller_generic_supported(void *context, const usb_device_desc_t *desc) {
     // generic controller supports all midi devices
     return true;
 }
 
 
-esp_err_t controller_generic_init(controller_generic_t *controller) {
+esp_err_t controller_generic_init(void *context) {
+    controller_generic_t *controller = context;
+
     // reset the current note
     controller->current_note = -1;
 
@@ -30,14 +34,18 @@ esp_err_t controller_generic_init(controller_generic_t *controller) {
     return ESP_OK;
 }
 
-esp_err_t controller_generic_free(controller_generic_t *controller) {
+esp_err_t controller_generic_free(void *context) {
+    controller_generic_t *controller = context;
+
     // halt the sequencer
     sequencer_pause(controller->super.config.sequencer);
 
     return ESP_OK;
 }
 
-static void controller_generic_note_off(controller_generic_t *controller, uint8_t note) {
+static void controller_generic_note_off(void *context, uint8_t note) {
+    controller_generic_t *controller = context;
+
     // release the note only if it is the current one
     if (controller->current_note == note) {
         output_set_voltage(controller->super.config.output, 0, 1, OUTPUT_VELOCITY_TO_VOLTAGE(0));
@@ -45,7 +53,9 @@ static void controller_generic_note_off(controller_generic_t *controller, uint8_
     }
 }
 
-static void controller_generic_note_on(controller_generic_t *controller, uint8_t note, uint8_t velocity) {
+static void controller_generic_note_on(void *context, uint8_t note, uint8_t velocity) {
+    controller_generic_t *controller = context;
+
     // same as note off
     if (velocity == 0) {
         controller_generic_note_off(controller, note);
@@ -58,7 +68,9 @@ static void controller_generic_note_on(controller_generic_t *controller, uint8_t
     controller->current_note = note;
 }
 
-esp_err_t controller_generic_midi_recv(controller_generic_t *controller, const midi_message_t *message) {
+esp_err_t controller_generic_midi_recv(void *context, const midi_message_t *message) {
+    controller_generic_t *controller = context;
+
     ESP_LOGI(TAG, "Controller Received Message: cmd: %02x, chan: %02x, data: %02x %02x",
         message->command,
         message->channel,
@@ -95,7 +107,9 @@ esp_err_t controller_generic_midi_recv(controller_generic_t *controller, const m
     return ESP_OK;
 }
 
-esp_err_t controller_generic_sequencer_event(controller_generic_t *controller, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+esp_err_t controller_generic_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
+    controller_generic_t *controller = context;
+
     /* if (event_base == SEQUENCER_EVENT) {
         switch (event_id) {
             case SEQUENCER_TICK_EVENT:;

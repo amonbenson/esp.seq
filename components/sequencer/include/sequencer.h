@@ -2,8 +2,8 @@
 
 #include <esp_err.h>
 #include <esp_timer.h>
-#include <esp_event.h>
 #include "track.h"
+#include "callback.h"
 
 
 #define SEQUENCER_NUM_TRACKS 4
@@ -13,31 +13,41 @@
 })
 
 
-ESP_EVENT_DECLARE_BASE(SEQUENCER_EVENT);
-enum {
-    SEQUENCER_TICK_EVENT,
-    SEQUENCER_PLAY_EVENT,
-    SEQUENCER_PAUSE_EVENT,
-    SEQUENCER_SEEK_EVENT
-};
+typedef enum {
+    SEQUENCER_TICK,
+    SEQUENCER_PLAY,
+    SEQUENCER_PAUSE,
+    SEQUENCER_SEEK,
+    SEQUENCER_TRACK_EVENT
+} sequencer_event_t;
+
+typedef struct {
+    track_t *track;
+    track_event_t event;
+    void *data;
+} sequencer_track_event_t;
+
+typedef struct sequencer_t sequencer_t;
+CALLBACK_DECLARE(sequencer_event, esp_err_t,
+    sequencer_event_t event, sequencer_t *sequencer, void *data);
 
 
 typedef struct {
-    esp_event_handler_t event_handler;
-    void *event_handler_arg;
-
+    struct {
+        void *context;
+        CALLBACK_TYPE(sequencer_event) event;
+    } callbacks;
     uint16_t bpm;
 } sequencer_config_t;
 
-typedef struct {
+struct sequencer_t {
     sequencer_config_t config;
     esp_timer_handle_t timer;
-    esp_event_loop_handle_t event_loop;
 
     track_t tracks[SEQUENCER_NUM_TRACKS];
     uint32_t playhead;
     bool playing;
-} sequencer_t;
+};
 
 
 esp_err_t sequencer_init(sequencer_t *sequencer, const sequencer_config_t *config);

@@ -1,6 +1,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
+#include <esp_check.h>
 
 #include <usb.h>
 #include <usb_midi.h>
@@ -126,40 +127,50 @@ static sequencer_t sequencer;
 static controller_t *controller = NULL;
 
 
-void sequencer_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    // sequencer --> output
-    if (event_base == TRACK_EVENT) {
-        switch (event_id) {
-            case TRACK_NOTE_CHANGE_EVENT:;
-                track_note_change_event_t note_event = *(track_note_change_event_t *) event_data;
-                output_set_voltage(&output, 0, 0, OUTPUT_NOTE_TO_VOLTAGE(note_event.note));
-                break;
-            case TRACK_VELOCITY_CHANGE_EVENT:;
-                track_velocity_change_event_t velocity_event = *(track_velocity_change_event_t *) event_data;
-                output_set_voltage(&output, 0, 1, OUTPUT_VELOCITY_TO_VOLTAGE(velocity_event.velocity));
-                break;
-            default:
-                ESP_LOGE(TAG, "unknown track event: %d", event_id);
-                break;
-        }
+esp_err_t sequencer_event_callback(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
+    esp_err_t ret;
+    
+    // set the output voltage based on note and velocity events
+    switch (event) {
+        case SEQUENCER_TRACK_EVENT:;
+            sequencer_track_event_t *track_event = (sequencer_track_event_t *) data;
+            switch (track_event->event) {
+                case TRACK_NOTE_CHANGE:;
+                    uint8_t note = *(uint8_t *) track_event->data;
+                    ret = output_set_voltage(&output, 0, 0, OUTPUT_NOTE_TO_VOLTAGE(note));
+                    ESP_RETURN_ON_ERROR(ret, TAG, "failed to set output voltage");
+                    break;
+                case TRACK_VELOCITY_CHANGE:;
+                    uint8_t velocity = *(uint8_t *) track_event->data;
+                    ret = output_set_voltage(&output, 0, 1, OUTPUT_VELOCITY_TO_VOLTAGE(velocity));
+                    ESP_RETURN_ON_ERROR(ret, TAG, "failed to set output voltage");
+                    break;
+            }
+            break;
+        default:
+            break;
     }
 
-    // sequencer --> controller
+    // forward sequencer events to the current controller
     if (controller != NULL) {
-        controller_sequencer_event(controller, event_base, event_id, event_data);
+        ret = controller_sequencer_event(controller, event, sequencer, data);
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to forward sequencer event to controller");
     }
+
+    return ESP_OK;
 }
 
-esp_err_t controller_midi_send_callback(controller_t *controller, const midi_message_t *message) {
-    // usb midi <-- controller
+esp_err_t controller_midi_send_callback(void *context, controller_t *controller, const midi_message_t *message) {
     return usb_midi_send(&usb_midi, message);
 }
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
     const controller_config_t config = {
+        .callbacks = {
+            .midi_send = controller_midi_send_callback
+        },
         .sequencer = &sequencer,
-        .output = &output,
-        .midi_send = controller_midi_send_callback
+        .output = &output
     };
 
     // create the usb controller
@@ -178,7 +189,9 @@ void usb_midi_disconnected_callback(const usb_device_desc_t *desc) {
 
 void usb_midi_recv_callback(const midi_message_t *message) {
     // usb midi --> controller
-    controller_midi_recv(controller, message);
+    if (controller != NULL) {
+        controller_midi_recv(controller, message);
+    }
 }
 
 void app_main(void) {
@@ -216,9 +229,10 @@ void app_main(void) {
     
     // setup the sequencer
     const sequencer_config_t sequencer_config = {
-        .bpm = bpm,
-        .event_handler = sequencer_event_handler,
-        .event_handler_arg = NULL
+        .callbacks = {
+            .event = sequencer_event_callback,
+        },
+        .bpm = bpm
     };
     ESP_ERROR_CHECK(sequencer_init(&sequencer, &sequencer_config));
 

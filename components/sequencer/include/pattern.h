@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <stdbool.h>
 #include "sequencer_config.h"
+#include "callback.h"
 
 
 #define PATTERN_DEFAULT_CONFIG() ((pattern_config_t) { \
@@ -25,8 +26,6 @@ typedef struct {
     uint8_t gate;
     uint8_t probability;
 } pattern_step_t;
-
-typedef void (*pattern_step_change_callback_t)(void *arg, pattern_atomic_step_t step);
 
 
 typedef enum {
@@ -51,6 +50,7 @@ typedef struct {
     uint16_t active_step_off;
 
     pattern_step_t *steps;
+    pattern_atomic_step_t state;
 } pattern_t;
 
 
@@ -58,7 +58,7 @@ esp_err_t pattern_init(pattern_t *pattern, const pattern_config_t *config);
 
 esp_err_t pattern_resize(pattern_t *pattern, uint16_t num_steps);
 esp_err_t pattern_seek(pattern_t *pattern, uint32_t playhead);
-esp_err_t pattern_tick(pattern_t *pattern, pattern_step_change_callback_t callback, void *callback_arg);
+esp_err_t pattern_tick(pattern_t *pattern);
 
 pattern_step_t *pattern_get_active_step(pattern_t *pattern);
 pattern_step_t *pattern_get_previous_step(pattern_t *pattern);

@@ -4,8 +4,6 @@
 
 static const char *TAG = "sequencer: track";
 
-ESP_EVENT_DEFINE_BASE(TRACK_EVENT);
-
 
 esp_err_t track_init(track_t *track, const track_config_t *config) {
     track->config = *config;
@@ -33,55 +31,29 @@ esp_err_t track_seek(track_t *track, uint32_t playhead) {
     return ESP_OK;
 }
 
-static void track_pattern_step_change_callback(void *arg, pattern_atomic_step_t step) {
-    track_t *track = (track_t *) arg;
-    esp_err_t ret;
-
-    // nothing to update (consecutive steps with the same note and velocity)
-    if (!track->config.sequencer_event_loop) return;
-
-    // update the note only if it's actually audible (velocity > 0)
-    if (track->active_step.note != step.note && step.velocity > 0) {
-        track_note_change_event_t event = {
-            .track = track,
-            .note = step.note
-        };
-        ret = esp_event_post_to(track->config.sequencer_event_loop,
-            TRACK_EVENT,
-            TRACK_NOTE_CHANGE_EVENT,
-            &event,
-            sizeof(event),
-            portMAX_DELAY);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "failed to post note change event: %s", esp_err_to_name(ret));
-        }
-        track->active_step.note = step.note;
-    }
-
-    // update the velocity
-    if (track->active_step.velocity != step.velocity) {
-        track_velocity_change_event_t event = {
-            .track = track,
-            .velocity = step.velocity
-        };
-        ret = esp_event_post_to(track->config.sequencer_event_loop,
-            TRACK_EVENT,
-            TRACK_VELOCITY_CHANGE_EVENT,
-            &event,
-            sizeof(event),
-            portMAX_DELAY);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "failed to post velocity change event: %s", esp_err_to_name(ret));
-        }
-        track->active_step.velocity = step.velocity;
-    }
-}
-
 esp_err_t track_tick(track_t *track, uint32_t playhead) {
+    esp_err_t ret;
     pattern_t *pattern = track_get_active_pattern(track);
     if (pattern == NULL) return ESP_OK;
 
-    return pattern_tick(pattern, track_pattern_step_change_callback, track);
+    // update the pattern's state
+    ESP_RETURN_ON_ERROR(pattern_tick(pattern), TAG, "failed to update pattern");
+
+    // update the note only if it's actually audible (velocity > 0)
+    if (track->active_step.note != pattern->state.note && pattern->state.velocity > 0) {
+        ret = CALLBACK_INVOKE(&track->config.callbacks, event,
+            TRACK_NOTE_CHANGE, track, &pattern->state.note);
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to invoke note change callback");
+    }
+
+    // update the velocity
+    if (track->active_step.velocity != pattern->state.velocity) {
+        ret = CALLBACK_INVOKE(&track->config.callbacks, event,
+            TRACK_VELOCITY_CHANGE, track, &pattern->state.velocity);
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to invoke velocity change callback");
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t track_set_active_pattern(track_t *track, int pattern_id) {

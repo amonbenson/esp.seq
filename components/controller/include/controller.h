@@ -60,5 +60,8 @@ controller_t *controller_create_from_desc(const controller_class_t *classes[], c
 controller_t *controller_create(const controller_class_t *class, const controller_config_t *config);
 esp_err_t controller_free(controller_t *controller);
 
+esp_err_t controller_midi_send(controller_t *controller, const midi_message_t *message);
+esp_err_t controller_midi_send_sysex(controller_t *controller, const uint8_t *data, size_t length);
+
 esp_err_t controller_midi_recv(controller_t *controller, const midi_message_t *message);
 esp_err_t controller_sequencer_event(controller_t *controller, sequencer_event_t event, sequencer_t *sequencer, void *data);

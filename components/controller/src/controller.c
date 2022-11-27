@@ -57,7 +57,31 @@ esp_err_t controller_free(controller_t *controller) {
     return ESP_OK;
 }
 
+esp_err_t controller_midi_send(controller_t *controller, const midi_message_t *message) {
+    return CALLBACK_INVOKE(&controller->config.callbacks, midi_send,
+        controller,
+        message);
+}
+
+esp_err_t controller_midi_send_sysex(controller_t *controller, const uint8_t *data, size_t length) {
+    midi_message_t message = {
+        .command = MIDI_COMMAND_SYSEX,
+        .sysex = {
+            .data = data,
+            .length = length,
+        },
+    };
+
+    printf("esp --> controller: ");
+    midi_message_print(&message);
+
+    return controller_midi_send(controller, &message);
+}
+
 esp_err_t controller_midi_recv(controller_t *controller, const midi_message_t *message) {
+    printf("controller --> esp: ");
+    midi_message_print(message);
+
     return CALLBACK_INVOKE(&controller->functions, midi_recv,
         message);
 }

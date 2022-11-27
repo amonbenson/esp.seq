@@ -4,8 +4,10 @@
 #include "midi_message.h"
 
 
-#define LAUNCHPAD_VENDOR_ID 0x1235
-#define LAUNCHPAD_PRO_PRODUCT_ID 0x51
+#define LP_VENDOR_ID 0x1235
+#define LP_PRODUCT_ID 0x51
+
+#define LP_SYSEX_HEADER 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10
 
 
 extern const controller_class_t controller_class_launchpad;

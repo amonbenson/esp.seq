@@ -47,7 +47,7 @@ static sequencer_t sequencer;
 
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
-    if (desc->idVendor == LAUNCHPAD_VENDOR_ID && desc->idProduct == LAUNCHPAD_PRO_PRODUCT_ID) {
+    if (desc->idVendor == LP_VENDOR_ID && desc->idProduct == LP_PRODUCT_ID) {
         launchpad_connected_callback(&launchpad, desc);
     }
 }

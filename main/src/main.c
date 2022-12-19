@@ -238,7 +238,7 @@ void app_main(void) {
 
     // setup a test sequence
     track_t *track = &sequencer.tracks[0];
-    ESP_ERROR_CHECK(track_set_active_pattern(track, 0));
+    //ESP_ERROR_CHECK(track_set_active_pattern(track, 0));
 
     pattern_t *pattern = track_get_active_pattern(track);
 

@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 static const uint8_t lpui_sysex_header[] = { LP_SYSEX_HEADER };
+static const lpui_color_t lpui_color_patterns[] = { LPUI_COLOR_PATTERNS };
 
 
 esp_err_t lpui_init(lpui_t *ui) {
@@ -24,6 +26,23 @@ esp_err_t lpui_init(lpui_t *ui) {
 esp_err_t lpui_free(lpui_t *ui) {
     free(ui->buffer);
     return ESP_OK;
+}
+
+
+lpui_color_t lpui_color_darken(lpui_color_t color) {
+    return (lpui_color_t) {
+        .red = color.red / 16,
+        .green = color.green / 16,
+        .blue = color.blue / 16,
+    };
+}
+
+lpui_color_t lpui_color_lighten(lpui_color_t color) {
+    return (lpui_color_t) {
+        .red = color.red + (0xff - color.red) / 16,
+        .green = color.green + (0xff - color.green) / 16,
+        .blue = color.blue + (0xff - color.blue) / 16,
+    };
 }
 
 
@@ -52,18 +71,29 @@ static void lpui_sysex_end(lpui_t *ui) {
 }
 
 
-static lpui_color_t lpui_get_step_color(pattern_t *pattern, uint16_t step_index) {
-    if (pattern == NULL) {
-        return LPUI_COLOR_SEQ_BG;
+static lpui_color_t lpui_pattern_editor_get_step_color(lpui_pattern_editor_t *editor, uint16_t step_index) {
+    // check if the pattern is valid
+    if (editor->pattern == NULL) {
+        return LPUI_COLOR_BLACK;
     }
+    pattern_t *pattern = editor->pattern;
+
+    // check if the step index is valid
+    if (step_index >= pattern->config.step_length) {
+        return LPUI_COLOR_BLACK;
+    }
+
+    // get the base color
+    uint8_t color_id = editor->track_id % (sizeof(lpui_color_patterns) / sizeof(lpui_color_t));
+    lpui_color_t base_color = lpui_color_patterns[color_id];
 
     pattern_step_t *step = &pattern->steps[step_index];
     if (step_index == pattern->step_position) {
-        return LPUI_COLOR_SEQ_ACTIVE;
+        return LPUI_COLOR_PLAYHEAD;
     } else if (step->atomic.velocity > 0) {
-        return LPUI_COLOR_SEQ_ENABLED;
+        return base_color;
     } else {
-        return LPUI_COLOR_SEQ_BG;
+        return lpui_color_darken(base_color);
     }
 }
 
@@ -79,21 +109,20 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor) {
     for (p.y = 0; p.y < size->height; p.y++) {
         for (p.x = 0; p.x < size->width; p.x++) {
             uint8_t step_index = p.y * size->width + p.x + step_offset;
-            lpui_color_t color = lpui_get_step_color(editor->pattern, step_index);
+            lpui_color_t color = lpui_pattern_editor_get_step_color(editor, step_index);
 
             lpui_sysex_led_color(ui, (lpui_position_t) {
                 .x = pos->x + p.x,
-                .y = 9 - pos->y - p.y
+                .y = pos->y + size->height - 1 - p.y
             }, color);
         }
     }
 
     lpui_sysex_end(ui);
+    editor->cmp.redraw_required = false;
 }
 
 void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *pattern) {
-    editor->cmp.redraw_required = false;
-
     // check if pattern is available
     if (pattern == NULL) {
         if (editor->pattern != NULL) {
@@ -118,4 +147,13 @@ void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *p
 
     // enable redraw flag
     editor->cmp.redraw_required = true;
+}
+
+void lpui_pattern_editor_set_track_id(lpui_pattern_editor_t *editor, int track_id) {
+    // redraw if the id changed on an active pattern
+    if (editor->pattern && editor->track_id != track_id) {
+        editor->cmp.redraw_required = true;
+    }
+
+    editor->track_id = track_id;
 }

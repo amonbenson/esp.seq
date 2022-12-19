@@ -7,10 +7,9 @@ static const char *TAG = "sequencer: track";
 
 esp_err_t track_init(track_t *track, const track_config_t *config) {
     track->config = *config;
-    track->active_pattern = -1;
+    track->active_pattern = 0; // activate the first patten on each track
     track->active_step = (pattern_atomic_step_t) { .note = 0, .velocity = 0 };
-
-    track_seek(track, 0);
+    track->playhead = 0;
 
     // initialize all patterns
     const pattern_config_t pattern_config = PATTERN_DEFAULT_CONFIG();
@@ -18,6 +17,9 @@ esp_err_t track_init(track_t *track, const track_config_t *config) {
         ESP_RETURN_ON_ERROR(pattern_init(&track->patterns[i], &pattern_config),
             TAG, "failed to initialize pattern %d", i);
     }
+
+    // make sure we start at position 0
+    track_seek(track, 0);
 
     return ESP_OK;
 }

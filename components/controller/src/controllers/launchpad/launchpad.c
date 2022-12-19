@@ -82,10 +82,11 @@ esp_err_t controller_launchpad_init(void *context) {
     // initialize pattern editor
     controller->pattern_editor = (lpui_pattern_editor_t) {
         .cmp = {
-            .pos = { x: 1, y: 1 },
+            .pos = { x: 1, y: 5 },
             .size = { width: 8, height: 4 },
         },
         .page = 0,
+        .track_id = 0,
         .pattern = NULL,
         .step_position = 0
     };
@@ -121,14 +122,8 @@ esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *me
 
     switch (message->command) {
         case MIDI_COMMAND_NOTE_ON:
-            if (message->note_on.velocity > 0) {
-                return controller_launchpad_note_event(controller,
-                    message->note_on.velocity, message->note_on.note);
-            } else {
-                return controller_launchpad_note_event(controller,
-                    0, message->note_on.note);
-            }
-            break;
+            return controller_launchpad_note_event(controller,
+                message->note_on.velocity, message->note_on.note);
         case MIDI_COMMAND_NOTE_OFF:
             return controller_launchpad_note_event(controller,
                 0, message->note_off.note);
@@ -142,7 +137,8 @@ esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *me
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
     controller_launchpad_t *controller = context;
 
-    track_t *track = &sequencer->tracks[0];
+    // get the active pattern
+    track_t *track = &sequencer->tracks[controller->pattern_editor.track_id];
     pattern_t *pattern = track_get_active_pattern(track);
     controller->pattern_editor.pattern = pattern;
 

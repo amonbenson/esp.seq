@@ -81,7 +81,7 @@ esp_err_t pattern_tick(pattern_t *pattern) {
         }
     }
 
-    // stop playing a step (if step = 128, this will never be called)
+    // stop playing a step (if gate = 128, this will never be called)
     if (pattern->substep_position == pattern->active_step_off && pattern->active_step_enabled) {
         pattern->state = (pattern_atomic_step_t) { 0 };
     }

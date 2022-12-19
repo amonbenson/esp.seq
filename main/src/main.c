@@ -10,7 +10,7 @@
 #include <sequencer.h>
 
 #include <controller.h>
-#include <controllers/launchpad.h>
+#include <controllers/launchpad/launchpad.h>
 #include <controllers/generic.h>
 
 
@@ -254,7 +254,7 @@ void app_main(void) {
     }
 
     // start the sequencer
-    //ESP_ERROR_CHECK(sequencer_play(&sequencer));
+    ESP_ERROR_CHECK(sequencer_play(&sequencer));
 
     vTaskDelete(NULL);
 }

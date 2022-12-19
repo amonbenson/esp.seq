@@ -53,6 +53,9 @@ esp_err_t track_tick(track_t *track, uint32_t playhead) {
         ESP_RETURN_ON_ERROR(ret, TAG, "failed to invoke velocity change callback");
     }
 
+    // update the active step state
+    track->active_step = pattern->state;
+
     return ESP_OK;
 }
 

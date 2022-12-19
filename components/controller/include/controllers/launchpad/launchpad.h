@@ -2,6 +2,8 @@
 
 #include "controller.h"
 #include "midi_message.h"
+#include "controllers/launchpad/launchpad_types.h"
+#include "controllers/launchpad/lpui.h"
 
 
 #define LP_VENDOR_ID 0x1235
@@ -22,38 +24,15 @@
 #define LP_SYSEX_SIDE_LED 0x63
 #define LP_SYSEX_COLOR_CLEAR 0x00
 
-#define LP_COLOR(r, g, b) ((lp_color_t) { .red = r, .green = g, .blue = b })
-#define LP_COLOR_SEQ_BG LP_COLOR(0x00, 0x04, 0x02)
-#define LP_COLOR_SEQ_ENABLED LP_COLOR(0x00, 0x3f, 0x20)
-#define LP_COLOR_SEQ_ACTIVE LP_COLOR(0x3f, 0x3f, 0x3f)
-
 
 extern const controller_class_t controller_class_launchpad;
 
 
 typedef struct {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} lp_color_t;
-
-typedef struct {
-    uint8_t x;
-    uint8_t y;
-    uint8_t width;
-    uint8_t height;
-} lp_bounds_t;
-
-typedef struct {
-    pattern_t *pattern;
-    lp_bounds_t bounds;
-    uint8_t page;
-    uint16_t last_step_position;
-} lp_pattern_editor_t;
-
-typedef struct {
     controller_t super;
-    lp_pattern_editor_t pattern_editor;
+
+    lpui_t ui;
+    lpui_pattern_editor_t pattern_editor;
 } controller_launchpad_t;
 
 

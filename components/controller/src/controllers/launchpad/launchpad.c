@@ -2,12 +2,12 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include <string.h>
+#include "controllers/launchpad/launchpad_types.h"
 
 
 static const char *TAG = "launchpad controller";
 
 // static sysex messages
-static const uint8_t lp_sysex_header[] = { LP_SYSEX_HEADER };
 static const uint8_t lp_sysex_standalone_mode[] = { LP_SYSEX_HEADER, 0x21, 0x01, 0xF7 };
 static const uint8_t lp_sysex_prog_layout[] = { LP_SYSEX_HEADER, 0x2C, 0x03, 0xF7 };
 static const uint8_t lp_sysex_clear_grid[] = {
@@ -23,9 +23,6 @@ static const uint8_t lp_sysex_clear_side_led[] = {
     LP_SYSEX_COLOR_CLEAR,
     0xF7
 };
-
-// buffer for dynamic sysex messages
-uint8_t lp_sysex_buffer[LP_SYSEX_BUFFER_SIZE];
 
 
 const controller_class_t controller_class_launchpad = {
@@ -57,79 +54,19 @@ static esp_err_t lp_clear(controller_launchpad_t *controller) {
     return ESP_OK;
 }
 
-static uint8_t *lp_sysex_start(uint8_t command) {
-    uint8_t *b = lp_sysex_buffer + sizeof(lp_sysex_header);
-
-    *b++ = command;
-    return b;
-}
-
-static uint8_t *lp_sysex_color(uint8_t *b, const lp_color_t color) {
-    *b++ = color.red;
-    *b++ = color.green;
-    *b++ = color.blue;
-    return b;
-}
-
-static uint8_t *lp_sysex_led_color(uint8_t *b, uint8_t x, uint8_t y, const lp_color_t color) {
-    *b++ = x + y * 10;
-    b = lp_sysex_color(b, color);
-    return b;
-}
-
-static esp_err_t lp_sysex_commit(controller_launchpad_t *controller, uint8_t *b) {
-    *b++ = 0xF7;
-
+static esp_err_t controller_launchpad_send_lpui(controller_launchpad_t *controller) {
     return controller_midi_send_sysex(&controller->super,
-        lp_sysex_buffer, b - lp_sysex_buffer);
-}
-
-static esp_err_t pattern_editor_draw(controller_launchpad_t *controller, pattern_t *pattern) {
-    esp_err_t ret;
-
-    lp_pattern_editor_t *editor = &controller->pattern_editor;
-    lp_bounds_t *bounds = &editor->bounds;
-    uint8_t page_steps = bounds->width * bounds->height;
-    uint8_t step_offset = editor->page * page_steps;
-
-    uint8_t *b = lp_sysex_start(0x0B);
-
-    for (uint8_t y = 0; y < bounds->height; y++) {
-        for (uint8_t x = 0; x < bounds->width; x++) {
-            uint8_t step_index = y * bounds->width + x + step_offset;
-            pattern_step_t *step = &pattern->steps[step_index];
-
-            lp_color_t color;
-            if (step_index == pattern->step_position) {
-                color = LP_COLOR_SEQ_ACTIVE;
-            } else if (step->atomic.velocity > 0) {
-                color = LP_COLOR_SEQ_ENABLED;
-            } else {
-                color = LP_COLOR_SEQ_BG;
-            }
-
-            b = lp_sysex_led_color(b, bounds->x + x, 9 - bounds->y - y, color);
-        }
-    }
-
-    ret = lp_sysex_commit(controller, b);
-    ESP_RETURN_ON_ERROR(ret, TAG, "Failed to draw sequencer");
-
-    return ESP_OK;
-}
-
-static esp_err_t piano_editor_draw(controller_launchpad_t *controller, pattern_t *pattern) {
-    esp_err_t ret;
-
-    return ESP_OK;
+        controller->ui.buffer,
+        controller->ui.buffer_size);
 }
 
 esp_err_t controller_launchpad_init(void *context) {
     esp_err_t ret;
     controller_launchpad_t *controller = context;
 
-    // setup sysex buffer
-    memcpy(lp_sysex_buffer, lp_sysex_header, sizeof(lp_sysex_header));
+    // setup launchpad ui
+    ret = lpui_init(&controller->ui);
+    ESP_RETURN_ON_ERROR(ret, TAG, "Failed to initialize launchpad ui");
 
     // select programmer layout in standalone mode
     ret = controller_midi_send_sysex(&controller->super, lp_sysex_standalone_mode, sizeof(lp_sysex_standalone_mode));
@@ -143,16 +80,14 @@ esp_err_t controller_launchpad_init(void *context) {
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to clear launchpad");
 
     // initialize pattern editor
-    controller->pattern_editor = (lp_pattern_editor_t) {
-        .pattern = NULL,
-        .bounds = {
-            .x = 1,
-            .y = 1,
-            .width = 8,
-            .height = 4
+    controller->pattern_editor = (lpui_pattern_editor_t) {
+        .cmp = {
+            .pos = { x: 1, y: 1 },
+            .size = { width: 8, height: 4 },
         },
         .page = 0,
-        .last_step_position = 0
+        .pattern = NULL,
+        .step_position = 0
     };
 
     // initialize piano editor
@@ -167,6 +102,7 @@ esp_err_t controller_launchpad_free(void *context) {
 esp_err_t controller_launchpad_note_event(controller_launchpad_t *controller, uint8_t velocity, uint8_t note) {
     esp_err_t ret;
 
+    /*
     uint8_t *b = lp_sysex_start(0x0B);
 
     uint8_t x = note % 10;
@@ -175,6 +111,7 @@ esp_err_t controller_launchpad_note_event(controller_launchpad_t *controller, ui
 
     ret = lp_sysex_commit(controller, b);
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to draw sequencer");
+    */
 
     return ESP_OK;
 }
@@ -211,16 +148,14 @@ esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t 
 
     switch (event) {
         case SEQUENCER_TICK:
-            if (controller->pattern_editor.last_step_position != pattern->step_position) {
-                // automatic scrolling
-                uint8_t page_steps = controller->pattern_editor.bounds.width * controller->pattern_editor.bounds.height;
-                controller->pattern_editor.page = pattern->step_position / page_steps;
+            lpui_pattern_editor_set_pattern(&controller->pattern_editor, pattern);
 
-                // redraw the pattern editor
-                pattern_editor_draw(controller, pattern);
-
-                controller->pattern_editor.last_step_position = pattern->step_position;
+            // TODO: this should be moved somewhere central
+            if (controller->pattern_editor.cmp.redraw_required) {
+                lpui_pattern_editor_draw(&controller->ui, &controller->pattern_editor);
+                controller_launchpad_send_lpui(controller);
             }
+
             break;
         default:
             break;

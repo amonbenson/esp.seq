@@ -4,7 +4,6 @@
 #include <esp_err.h>
 #include "callback.h"
 #include "lpui_types.h"
-#include "pattern.h"
 
 
 #define LPUI_SYSEX_BUFFER_SIZE 256
@@ -29,20 +28,14 @@ CALLBACK_DECLARE(lpui_sysex_ready, esp_err_t,
     lpui_t *ui, uint8_t *buffer, size_t length);
 
 
-typedef struct {
+typedef struct lpui_component_t lpui_component_t;
+struct lpui_component_t {
     lpui_t *ui;
     lpui_position_t pos;
     lpui_size_t size;
-} lpui_component_t;
 
-typedef struct {
-    lpui_component_t cmp;
-    uint8_t page;
-
-    int track_id;
-    pattern_t *pattern;
-    uint16_t step_position;
-} lpui_pattern_editor_t;
+    lpui_component_t *next;
+};
 
 typedef struct {
     lpui_component_t cmp;
@@ -58,6 +51,8 @@ typedef struct {
 
 struct lpui_t {
     lpui_config_t config;
+
+    lpui_component_t *components;
 
     uint8_t *buffer;
     uint8_t *buffer_ptr;
@@ -75,12 +70,6 @@ esp_err_t lpui_sysex_reset(lpui_t *ui, uint8_t command);
 esp_err_t lpui_sysex_add_color(lpui_t *ui, lpui_color_t color);
 esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, lpui_color_t color);
 esp_err_t lpui_sysex_commit(lpui_t *ui);
-
-
-void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor);
-
-void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *pattern);
-void lpui_pattern_editor_set_track_id(lpui_pattern_editor_t *editor, int track_id);
 
 
 void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor);

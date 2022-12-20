@@ -89,7 +89,6 @@ esp_err_t controller_launchpad_init(void *context) {
     // initialize pattern editor
     controller->pattern_editor = (lpui_pattern_editor_t) {
         .cmp = {
-            .ui = &controller->ui,
             .pos = { x: 1, y: 5 },
             .size = { width: 8, height: 4 },
         },
@@ -98,15 +97,16 @@ esp_err_t controller_launchpad_init(void *context) {
         .pattern = NULL,
         .step_position = 0
     };
+    lpui_add_component(&controller->ui, &controller->pattern_editor.cmp);
 
     // initialize piano editor
     controller->piano_editor = (lpui_piano_editor_t) {
         .cmp = {
-            .ui = &controller->ui,
             .pos = { x: 1, y: 1 },
             .size = { width: 8, height: 4 }
         }
     };
+    lpui_add_component(&controller->ui, &controller->piano_editor.cmp);
 
     return ESP_OK;
 }

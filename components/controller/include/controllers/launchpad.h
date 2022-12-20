@@ -4,6 +4,7 @@
 #include "midi_message.h"
 #include "launchpad_types.h"
 #include "lpui.h"
+#include "lpui_components/pattern_editor.h"
 
 
 #define LP_VENDOR_ID 0x1235

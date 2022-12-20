@@ -9,7 +9,7 @@ static const char *TAG = "lpui";
 
 
 // set leds rgb command
-static const uint8_t lpui_sysex_header[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0B };
+static const uint8_t lpui_sysex_header[] = { LPUI_SYSEX_HEADER };
 static const lpui_color_t lpui_color_patterns[] = { LPUI_COLOR_PATTERNS };
 
 static const int8_t lpui_piano_editor_note_map[2][8] = {
@@ -45,20 +45,19 @@ static bool lpui_sysex_buffer_has_space(lpui_t *ui, size_t size) {
     return ui->buffer_ptr + size < ui->buffer + LPUI_SYSEX_BUFFER_SIZE;
 }
 
-static esp_err_t lpui_sysex_start(lpui_t *ui) {
+esp_err_t lpui_sysex_reset(lpui_t *ui, uint8_t command) {
     // reset the buffer pointer right after the header
     ui->buffer_ptr = ui->buffer + sizeof(lpui_sysex_header);
 
+    // write the command
+    *ui->buffer_ptr++ = command;
     return ESP_OK;
 }
 
-static esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_color_t color) {
+esp_err_t lpui_sysex_add_color(lpui_t *ui, const lpui_color_t color) {
     // validate the buffer size
-    ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 4), ESP_ERR_NO_MEM,
+    ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 3), ESP_ERR_NO_MEM,
         TAG, "not enough space in sysex buffer");
-
-    // write the position
-    *ui->buffer_ptr++ = pos.x + pos.y * 10;
 
     // write rgb components
     *ui->buffer_ptr++ = color.red;
@@ -68,11 +67,26 @@ static esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_
     return ESP_OK;
 }
 
-static esp_err_t lpui_sysex_commit(lpui_t *ui) {
+esp_err_t lpui_sysex_add_led(lpui_t *ui, const lpui_position_t pos, const lpui_color_t color) {
+    // validate the buffer size
+    ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 4), ESP_ERR_NO_MEM,
+        TAG, "not enough space in sysex buffer");
+
+    // write the position and rgb components
+    *ui->buffer_ptr++ = pos.x + pos.y * 10;
+    *ui->buffer_ptr++ = color.red;
+    *ui->buffer_ptr++ = color.green;
+    *ui->buffer_ptr++ = color.blue;
+
+    return ESP_OK;
+}
+
+esp_err_t lpui_sysex_commit(lpui_t *ui) {
     // validate the buffer size
     ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 1), ESP_ERR_NO_MEM,
         TAG, "not enough space in sysex buffer");
 
+    // add the terminator byze and calculate the length
     *ui->buffer_ptr++ = 0xF7;
     size_t length = ui->buffer_ptr - ui->buffer;
 
@@ -113,7 +127,7 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor) {
     uint8_t page_steps = size->width * size->height;
     uint8_t step_offset = editor->page * page_steps;
 
-    lpui_sysex_start(ui);
+    lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS);
 
     lpui_position_t p;
     for (p.y = 0; p.y < size->height; p.y++) {
@@ -182,7 +196,7 @@ void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor) {
     lpui_position_t *pos = &editor->cmp.pos;
     lpui_size_t *size = &editor->cmp.size;
 
-    lpui_sysex_start(ui);
+    lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS);
 
     lpui_position_t p;
     for (p.y = 0; p.y < size->height; p.y++) {

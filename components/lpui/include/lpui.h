@@ -8,6 +8,8 @@
 
 
 #define LPUI_SYSEX_BUFFER_SIZE 256
+#define LPUI_SYSEX_HEADER 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10
+#define LPUI_SYSEX_COMMAND_SET_LEDS 0x0B
 
 #define LPUI_COLOR(r, g, b) ((lpui_color_t) { .red = r, .green = g, .blue = b })
 #define LPUI_COLOR_BLACK LPUI_COLOR(0x00, 0x00, 0x00)
@@ -64,6 +66,15 @@ struct lpui_t {
 
 esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config);
 esp_err_t lpui_free(lpui_t *ui);
+
+esp_err_t lpui_add_component(lpui_t *ui, lpui_component_t *cmp);
+esp_err_t lpui_remove_component(lpui_t *ui, lpui_component_t *cmp);
+
+
+esp_err_t lpui_sysex_reset(lpui_t *ui, uint8_t command);
+esp_err_t lpui_sysex_add_color(lpui_t *ui, lpui_color_t color);
+esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, lpui_color_t color);
+esp_err_t lpui_sysex_commit(lpui_t *ui);
 
 
 void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor);

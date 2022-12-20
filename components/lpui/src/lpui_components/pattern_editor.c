@@ -12,6 +12,7 @@ esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_con
     editor->config = *config;
 
     const lpui_component_functions_t functions = {
+        .context = editor,
         .button_event = pattern_editor_button_event
     };
     lpui_component_init(&editor->cmp, &config->cmp_config, &functions);
@@ -68,7 +69,7 @@ static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor,
     }
 }
 
-static esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern, uint16_t step_positions[], size_t n) {
+esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern, uint16_t step_positions[], size_t n) {
     lpui_t *ui = editor->cmp.ui;
 
     // restart the sysex data stream
@@ -89,7 +90,7 @@ static esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *
     return ESP_OK;
 }
 
-static esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *pattern) {
+esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *pattern) {
     lpui_t *ui = editor->cmp.ui;
     lpui_size_t *size = &editor->cmp.config.size;
 
@@ -109,12 +110,6 @@ static esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t
         TAG, "Failed to commit sysex buffer");
 
     return ESP_OK;
-}
-
-static pattern_t *pattern_editor_get_active_pattern(pattern_editor_t *editor) {
-    sequencer_t *sequencer = editor->config.sequencer;
-    track_t *track = &sequencer->tracks[editor->track_id];
-    return track_get_active_pattern(track);
 }
 
 esp_err_t pattern_editor_update(pattern_editor_t *editor) {
@@ -169,11 +164,44 @@ esp_err_t pattern_editor_update(pattern_editor_t *editor) {
 }
 
 esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity) {
-    ESP_LOGI(TAG, "pattern editor button event at (%d, %d) with velocity %d", pos.x, pos.y, velocity);
+    pattern_editor_t *editor = (pattern_editor_t *) context;
+
+    if (velocity == 0) {
+        return ESP_OK;
+    }
+
+    pattern_t *pattern = pattern_editor_get_active_pattern(editor);
+    if (pattern == NULL) {
+        return ESP_OK;
+    }
+
+    lpui_position_t *cmp_pos = &editor->cmp.config.pos;
+    lpui_size_t *cmp_size = &editor->cmp.config.size;
+
+    // retrieve the step position
+    uint8_t x = pos.x - cmp_pos->x;
+    uint8_t y = pos.y - cmp_pos->y;
+    uint16_t display_position = (cmp_size->height - y - 1) * cmp_size->width + x;
+    uint16_t step_position = display_position + editor->step_offset;
+
+    // check if the step position is valid
+    if (step_position >= pattern->config.step_length) {
+        return ESP_OK;
+    }
+
+    // invoke the step select callback
+    ESP_RETURN_ON_ERROR(CALLBACK_INVOKE(&editor->config.callbacks, step_selected, editor, step_position),
+        TAG, "Failed to invoke step select callback");
 
     return ESP_OK;
 }
 
+
+pattern_t *pattern_editor_get_active_pattern(pattern_editor_t *editor) {
+    sequencer_t *sequencer = editor->config.sequencer;
+    track_t *track = &sequencer->tracks[editor->track_id];
+    return track_get_active_pattern(track);
+}
 
 esp_err_t pattern_editor_set_track_id(pattern_editor_t *editor, int track_id) {
     // store the new track id if it changed

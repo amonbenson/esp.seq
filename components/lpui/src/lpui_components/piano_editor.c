@@ -15,6 +15,7 @@ esp_err_t piano_editor_init(piano_editor_t *editor, const piano_editor_config_t 
     editor->config = *config;
 
     const lpui_component_functions_t functions = {
+        .context = editor,
         .button_event = piano_editor_button_event
     };
     lpui_component_init(&editor->cmp, &config->cmp_config, &functions);

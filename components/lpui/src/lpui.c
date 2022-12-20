@@ -43,7 +43,6 @@ esp_err_t lpui_component_init(lpui_component_t *cmp,
     cmp->config = *config;
 
     cmp->functions = *functions;
-    cmp->functions.context = cmp;
 
     cmp->ui = NULL;
     cmp->next = NULL;
@@ -120,6 +119,13 @@ esp_err_t lpui_sysex_commit(lpui_t *ui) {
 }
 
 
+static bool lpui_component_contains_position(const lpui_component_t *cmp, const lpui_position_t pos) {
+    return pos.x >= cmp->config.pos.x &&
+        pos.x < cmp->config.pos.x + cmp->config.size.width &&
+        pos.y >= cmp->config.pos.y &&
+        pos.y < cmp->config.pos.y + cmp->config.size.height;
+}
+
 esp_err_t lpui_midi_recv(lpui_t *ui, const midi_message_t *message) {
     uint8_t note, velocity;
 
@@ -149,8 +155,10 @@ esp_err_t lpui_midi_recv(lpui_t *ui, const midi_message_t *message) {
 
     // traverse the components list and find the first one to handle the event
     for (lpui_component_t *cmp = ui->components; cmp != NULL; cmp = cmp->next) {
-        // invoke the button event
-        ESP_LOGI(TAG, "%p", (&cmp->functions)->button_event);
+        // skip components that do not contain the position
+        if (!lpui_component_contains_position(cmp, pos)) continue;
+
+        // invoke the button_event callback
         ESP_RETURN_ON_ERROR(CALLBACK_INVOKE_REQUIRED(&cmp->functions, button_event, pos, velocity),
             TAG, "component does not implement button_event callback");
     }

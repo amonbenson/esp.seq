@@ -88,6 +88,10 @@ esp_err_t controller_launchpad_init(void *context) {
 
     // initialize pattern editor
     const pattern_editor_config_t pe_config = (pattern_editor_config_t) {
+        .callbacks = {
+            .context = controller,
+            .step_selected = controller_launchpad_step_selected,
+        },
         .cmp_config = {
             .pos = { x: 1, y: 5 },
             .size = { width: 8, height: 4 }
@@ -138,5 +142,23 @@ esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t 
             break;
     }
     
+    return ESP_OK;
+}
+
+esp_err_t controller_launchpad_step_selected(void *context, pattern_editor_t *editor, uint16_t step_position) {
+    controller_launchpad_t *controller = context;
+    pattern_t *pattern = pattern_editor_get_active_pattern(editor);
+
+    // toggle the step velocity
+    pattern_step_t *step = &pattern->steps[step_position];
+    if (step->atomic.velocity > 0) {
+        step->atomic.velocity = 0;
+    } else {
+        step->atomic.velocity = 127;
+    }
+
+    // redraw that specific step
+    pattern_editor_draw_steps(editor, pattern, &step_position, 1);
+
     return ESP_OK;
 }

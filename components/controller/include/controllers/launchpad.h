@@ -46,3 +46,5 @@ esp_err_t controller_launchpad_free(void *context);
 
 esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *message);
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data);
+
+esp_err_t controller_launchpad_step_selected(void *context, pattern_editor_t *editor, uint16_t step_position);

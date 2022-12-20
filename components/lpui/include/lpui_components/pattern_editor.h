@@ -26,6 +26,7 @@ typedef struct {
 
 
 esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_config_t *config);
-
 esp_err_t pattern_editor_update(pattern_editor_t *editor);
+esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity);
+
 esp_err_t pattern_editor_set_track_id(pattern_editor_t *editor, int track_id);

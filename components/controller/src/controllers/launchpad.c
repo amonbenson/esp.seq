@@ -98,7 +98,7 @@ esp_err_t controller_launchpad_init(void *context) {
     lpui_add_component(&controller->ui, &controller->pattern_editor.cmp);
 
     // initialize piano editor
-    controller->piano_editor = (lpui_piano_editor_t) {
+    /* controller->piano_editor = (lpui_piano_editor_t) {
         .cmp = {
             .config = {
                 .pos = { x: 1, y: 1 },
@@ -106,7 +106,7 @@ esp_err_t controller_launchpad_init(void *context) {
             }
         }
     };
-    lpui_add_component(&controller->ui, &controller->piano_editor.cmp);
+    lpui_add_component(&controller->ui, &controller->piano_editor.cmp); */
 
     return ESP_OK;
 }
@@ -115,36 +115,12 @@ esp_err_t controller_launchpad_free(void *context) {
     return ESP_OK;
 }
 
-esp_err_t controller_launchpad_note_event(controller_launchpad_t *controller, uint8_t velocity, uint8_t note) {
-    esp_err_t ret;
-
-    /*
-    uint8_t *b = lp_sysex_start(0x0B);
-
-    uint8_t x = note % 10;
-    uint8_t y = note / 10;
-    b = lp_sysex_led_color(b, x, y, velocity > 0 ? LP_COLOR_SEQ_ACTIVE : (lp_color_t) { 0 });
-
-    ret = lp_sysex_commit(controller, b);
-    ESP_RETURN_ON_ERROR(ret, TAG, "Failed to draw sequencer");
-    */
-
-    return ESP_OK;
-}
-
 esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *message) {
     controller_launchpad_t *controller = context;
+    lpui_t *ui = &controller->ui;
 
-    switch (message->command) {
-        case MIDI_COMMAND_NOTE_ON:
-            return controller_launchpad_note_event(controller,
-                message->note_on.velocity, message->note_on.note);
-        case MIDI_COMMAND_NOTE_OFF:
-            return controller_launchpad_note_event(controller,
-                0, message->note_off.note);
-        default:
-            break;
-    }
+    // let the launchpad ui handle the event
+    lpui_midi_recv(ui, message);
     
     return ESP_OK;
 }

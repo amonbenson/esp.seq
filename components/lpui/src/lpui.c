@@ -11,11 +11,6 @@ static const char *TAG = "lpui";
 static const uint8_t lpui_sysex_header[] = { LPUI_SYSEX_HEADER };
 //static const lpui_color_t lpui_color_patterns[] = { LPUI_COLOR_PATTERNS };
 
-static const int8_t lpui_piano_editor_note_map[2][8] = {
-    { 0, 2, 4, 5, 7, 9, 11, 12 },
-    { -1, 1, 3, -1, 6, 8, 10, -1 }
-};
-
 
 esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config) {
     // store the config
@@ -42,8 +37,15 @@ esp_err_t lpui_free(lpui_t *ui) {
     return ESP_OK;
 }
 
-esp_err_t lpui_component_init(lpui_component_t *cmp, const lpui_component_config_t *config) {
+esp_err_t lpui_component_init(lpui_component_t *cmp,
+        const lpui_component_config_t *config,
+        const lpui_component_functions_t *functions) {
     cmp->config = *config;
+
+    cmp->functions = *functions;
+    cmp->functions.context = cmp;
+
+    cmp->ui = NULL;
     cmp->next = NULL;
 
     return ESP_OK;
@@ -118,35 +120,40 @@ esp_err_t lpui_sysex_commit(lpui_t *ui) {
 }
 
 
-static lpui_color_t lpui_piano_editor_get_key_color(lpui_piano_editor_t *editor, int8_t key) {
-    // check if key is valid
-    if (key == -1) {
-        return LPUI_COLOR_BLACK;
+esp_err_t lpui_midi_recv(lpui_t *ui, const midi_message_t *message) {
+    uint8_t note, velocity;
+
+    // retrieve the note and velocity
+    switch (message->command) {
+        case MIDI_COMMAND_NOTE_ON:
+            note = message->note_on.note;
+            velocity = message->note_on.velocity;
+            break;
+        case MIDI_COMMAND_NOTE_OFF:
+            note = message->note_off.note;
+            velocity = 0;
+            break;
+        case MIDI_COMMAND_CONTROL_CHANGE:
+            note = message->control_change.control;
+            velocity = message->control_change.value;
+            break;
+        default:
+            return ESP_OK;
     }
 
-    // TODO: different pressed color
-    return LPUI_COLOR_PIANO_RELEASED;
-}
+    // convert the note into a button
+    lpui_position_t pos = {
+        .x = note % 10,
+        .y = note / 10
+    };
 
-void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor) {
-    lpui_position_t *pos = &editor->cmp.config.pos;
-    lpui_size_t *size = &editor->cmp.config.size;
-
-    lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS);
-
-    lpui_position_t p;
-    for (p.y = 0; p.y < size->height; p.y++) {
-        for (p.x = 0; p.x < size->width; p.x++) {
-            uint8_t octave = p.y / 2;
-            uint8_t key = lpui_piano_editor_note_map[p.y % 2][p.x % 8];
-            lpui_color_t color = lpui_piano_editor_get_key_color(editor, key);
-
-            lpui_sysex_add_led(ui, (lpui_position_t) {
-                .x = pos->x + p.x,
-                .y = pos->y + p.y
-            }, color);
-        }
+    // traverse the components list and find the first one to handle the event
+    for (lpui_component_t *cmp = ui->components; cmp != NULL; cmp = cmp->next) {
+        // invoke the button event
+        ESP_LOGI(TAG, "%p", (&cmp->functions)->button_event);
+        ESP_RETURN_ON_ERROR(CALLBACK_INVOKE_REQUIRED(&cmp->functions, button_event, pos, velocity),
+            TAG, "component does not implement button_event callback");
     }
 
-    lpui_sysex_commit(ui);
+    return ESP_OK;
 }

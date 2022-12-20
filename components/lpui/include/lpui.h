@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <esp_err.h>
+#include "midi_message.h"
 #include "callback.h"
 #include "lpui_types.h"
 
@@ -23,27 +24,32 @@
 #define LPUI_COLOR_PIANO_PRESSED LPUI_COLOR(0x3f, 0x3f, 0x3f)
 
 
-typedef struct lpui_t lpui_t;
-CALLBACK_DECLARE(lpui_sysex_ready, esp_err_t,
-    lpui_t *ui, uint8_t *buffer, size_t length);
+CALLBACK_DECLARE(lpui_component_button_event, esp_err_t,
+    const lpui_position_t pos, uint8_t velocity);
 
+typedef struct {
+    void *context;
+    CALLBACK_TYPE(lpui_component_button_event) button_event;
+} lpui_component_functions_t;
 
 typedef struct {
     lpui_position_t pos;
     lpui_size_t size;
 } lpui_component_config_t;
 
+typedef struct lpui_t lpui_t;
 typedef struct lpui_component_t lpui_component_t;
 struct lpui_component_t {
-    lpui_t *ui;
     lpui_component_config_t config;
+    lpui_component_functions_t functions;
+
+    lpui_t *ui;
     lpui_component_t *next;
 };
 
-typedef struct {
-    lpui_component_t cmp;
-} lpui_piano_editor_t;
 
+CALLBACK_DECLARE(lpui_sysex_ready, esp_err_t,
+    lpui_t *ui, uint8_t *buffer, size_t length);
 
 typedef struct {
     struct {
@@ -65,7 +71,9 @@ struct lpui_t {
 esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config);
 esp_err_t lpui_free(lpui_t *ui);
 
-esp_err_t lpui_component_init(lpui_component_t *cmp, const lpui_component_config_t *config);
+esp_err_t lpui_component_init(lpui_component_t *cmp,
+    const lpui_component_config_t *config,
+    const lpui_component_functions_t *functions);
 esp_err_t lpui_add_component(lpui_t *ui, lpui_component_t *cmp);
 esp_err_t lpui_remove_component(lpui_t *ui, lpui_component_t *cmp);
 
@@ -76,4 +84,4 @@ esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, lpui_color_t color
 esp_err_t lpui_sysex_commit(lpui_t *ui);
 
 
-void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor);
+esp_err_t lpui_midi_recv(lpui_t *ui, const midi_message_t *message);

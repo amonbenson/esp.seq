@@ -10,7 +10,11 @@ static const lpui_color_t lpui_color_patterns[] = { LPUI_COLOR_PATTERNS };
 
 esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_config_t *config) {
     editor->config = *config;
-    lpui_component_init(&editor->cmp, &config->cmp_config);
+
+    const lpui_component_functions_t functions = {
+        .button_event = pattern_editor_button_event
+    };
+    lpui_component_init(&editor->cmp, &config->cmp_config, &functions);
 
     editor->page = 0;
     editor->step_offset = 0;
@@ -163,6 +167,13 @@ esp_err_t pattern_editor_update(pattern_editor_t *editor) {
 
     return ESP_OK;
 }
+
+esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity) {
+    ESP_LOGI(TAG, "pattern editor button event at (%d, %d) with velocity %d", pos.x, pos.y, velocity);
+
+    return ESP_OK;
+}
+
 
 esp_err_t pattern_editor_set_track_id(pattern_editor_t *editor, int track_id) {
     // store the new track id if it changed

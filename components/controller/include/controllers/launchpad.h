@@ -5,6 +5,7 @@
 #include "launchpad_types.h"
 #include "lpui.h"
 #include "lpui_components/pattern_editor.h"
+#include "lpui_components/piano_editor.h"
 
 
 #define LP_VENDOR_ID 0x1235
@@ -34,7 +35,7 @@ typedef struct {
 
     lpui_t ui;
     pattern_editor_t pattern_editor;
-    lpui_piano_editor_t piano_editor;
+    piano_editor_t piano_editor;
 } controller_launchpad_t;
 
 

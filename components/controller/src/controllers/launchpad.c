@@ -87,23 +87,23 @@ esp_err_t controller_launchpad_init(void *context) {
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to clear launchpad");
 
     // initialize pattern editor
-    controller->pattern_editor = (lpui_pattern_editor_t) {
-        .cmp = {
+    const pattern_editor_config_t pe_config = (pattern_editor_config_t) {
+        .cmp_config = {
             .pos = { x: 1, y: 5 },
-            .size = { width: 8, height: 4 },
+            .size = { width: 8, height: 4 }
         },
-        .page = 0,
-        .track_id = 0,
-        .pattern = NULL,
-        .step_position = 0
+        .sequencer = controller->super.config.sequencer
     };
+    pattern_editor_init(&controller->pattern_editor, &pe_config);
     lpui_add_component(&controller->ui, &controller->pattern_editor.cmp);
 
     // initialize piano editor
     controller->piano_editor = (lpui_piano_editor_t) {
         .cmp = {
-            .pos = { x: 1, y: 1 },
-            .size = { width: 8, height: 4 }
+            .config = {
+                .pos = { x: 1, y: 1 },
+                .size = { width: 8, height: 4 },
+            }
         }
     };
     lpui_add_component(&controller->ui, &controller->piano_editor.cmp);
@@ -152,15 +152,10 @@ esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *me
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
     controller_launchpad_t *controller = context;
 
-    // get the active pattern
-    track_t *track = &sequencer->tracks[controller->pattern_editor.track_id];
-    pattern_t *pattern = track_get_active_pattern(track);
-    controller->pattern_editor.pattern = pattern;
-
     switch (event) {
         case SEQUENCER_TICK:
             // update the pattern editor
-            lpui_pattern_editor_set_pattern(&controller->pattern_editor, pattern);
+            pattern_editor_update(&controller->pattern_editor);
 
             break;
         default:

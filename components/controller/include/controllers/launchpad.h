@@ -33,7 +33,7 @@ typedef struct {
     controller_t super;
 
     lpui_t ui;
-    lpui_pattern_editor_t pattern_editor;
+    pattern_editor_t pattern_editor;
     lpui_piano_editor_t piano_editor;
 } controller_launchpad_t;
 

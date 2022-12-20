@@ -42,6 +42,13 @@ esp_err_t lpui_free(lpui_t *ui) {
     return ESP_OK;
 }
 
+esp_err_t lpui_component_init(lpui_component_t *cmp, const lpui_component_config_t *config) {
+    cmp->config = *config;
+    cmp->next = NULL;
+
+    return ESP_OK;
+}
+
 esp_err_t lpui_add_component(lpui_t *ui, lpui_component_t *cmp) {
     // link the ui and component
     cmp->ui = ui;
@@ -122,8 +129,8 @@ static lpui_color_t lpui_piano_editor_get_key_color(lpui_piano_editor_t *editor,
 }
 
 void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor) {
-    lpui_position_t *pos = &editor->cmp.pos;
-    lpui_size_t *size = &editor->cmp.size;
+    lpui_position_t *pos = &editor->cmp.config.pos;
+    lpui_size_t *size = &editor->cmp.config.size;
 
     lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS);
 

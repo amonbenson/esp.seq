@@ -28,12 +28,15 @@ CALLBACK_DECLARE(lpui_sysex_ready, esp_err_t,
     lpui_t *ui, uint8_t *buffer, size_t length);
 
 
+typedef struct {
+    lpui_position_t pos;
+    lpui_size_t size;
+} lpui_component_config_t;
+
 typedef struct lpui_component_t lpui_component_t;
 struct lpui_component_t {
     lpui_t *ui;
-    lpui_position_t pos;
-    lpui_size_t size;
-
+    lpui_component_config_t config;
     lpui_component_t *next;
 };
 
@@ -62,6 +65,7 @@ struct lpui_t {
 esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config);
 esp_err_t lpui_free(lpui_t *ui);
 
+esp_err_t lpui_component_init(lpui_component_t *cmp, const lpui_component_config_t *config);
 esp_err_t lpui_add_component(lpui_t *ui, lpui_component_t *cmp);
 esp_err_t lpui_remove_component(lpui_t *ui, lpui_component_t *cmp);
 

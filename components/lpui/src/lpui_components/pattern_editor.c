@@ -24,11 +24,21 @@ esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_con
 }
 
 
-static esp_err_t pattern_editor_draw_step(pattern_editor_t *editor,
+static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor,
         pattern_t *pattern,
-        uint16_t step_index,
-        lpui_position_t pos) {
+        uint16_t step_position) {
     lpui_t *ui = editor->cmp.ui;
+    lpui_position_t *cmp_pos = &editor->cmp.config.pos;
+    lpui_size_t *cmp_size = &editor->cmp.config.size;
+
+    // calculate the drawing position
+    uint16_t display_position = step_position - editor->step_offset;
+    uint8_t x = display_position % cmp_size->width;
+    uint8_t y = display_position / cmp_size->width;
+    lpui_position_t pos = {
+        .x = cmp_pos->x + x,
+        .y = cmp_pos->y + cmp_size->height - 1 - y
+    };
 
     // check if the pattern is valid
     if (pattern == NULL) {
@@ -36,7 +46,7 @@ static esp_err_t pattern_editor_draw_step(pattern_editor_t *editor,
     }
 
     // check if the step index is valid
-    if (step_index >= pattern->config.step_length) {
+    if (step_position >= pattern->config.step_length) {
         return lpui_sysex_add_led(ui, pos, LPUI_COLOR_BLACK);
     }
 
@@ -44,8 +54,8 @@ static esp_err_t pattern_editor_draw_step(pattern_editor_t *editor,
     uint8_t color_id = editor->track_id % (sizeof(lpui_color_patterns) / sizeof(lpui_color_t));
     lpui_color_t base_color = lpui_color_patterns[color_id];
 
-    pattern_step_t *step = &pattern->steps[step_index];
-    if (step_index == pattern->step_position) {
+    pattern_step_t *step = &pattern->steps[step_position];
+    if (step_position == pattern->step_position) {
         return lpui_sysex_add_led(ui, pos, LPUI_COLOR_PLAYHEAD);
     } else if (step->atomic.velocity > 0) {
         return lpui_sysex_add_led(ui, pos, base_color);
@@ -54,28 +64,43 @@ static esp_err_t pattern_editor_draw_step(pattern_editor_t *editor,
     }
 }
 
-static esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *pattern) {
+static esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern, uint16_t step_positions[], size_t n) {
     lpui_t *ui = editor->cmp.ui;
-    lpui_position_t *cmp_p = &editor->cmp.config.pos;
-    lpui_size_t *cmp_s = &editor->cmp.config.size;
 
+    // restart the sysex data stream
     ESP_RETURN_ON_ERROR(lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS),
         TAG, "Failed to reset sysex buffer");
 
-    lpui_position_t p;
-    for (p.y = 0; p.y < cmp_s->height; p.y++) {
-        for (p.x = 0; p.x < cmp_s->width; p.x++) {
-            uint8_t step_index = p.y * cmp_s->width + p.x + editor->step_offset;
-            lpui_position_t led_p = {
-                .x = cmp_p->x + p.x,
-                .y = cmp_p->y + cmp_s->height - 1 - p.y
-            };
-
-            ESP_RETURN_ON_ERROR(pattern_editor_draw_step(editor, pattern, step_index, led_p),
-                TAG, "Failed to draw step");
-        }
+    // draw all visible steps
+    for (uint16_t i = 0; i < n; i++) {
+        uint16_t step_position = step_positions[i];
+        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, pattern, step_position),
+            TAG, "Failed to draw step");
     }
 
+    // finish and send the sysex data
+    ESP_RETURN_ON_ERROR(lpui_sysex_commit(ui),
+        TAG, "Failed to commit sysex buffer");
+
+    return ESP_OK;
+}
+
+static esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *pattern) {
+    lpui_t *ui = editor->cmp.ui;
+    lpui_size_t *size = &editor->cmp.config.size;
+
+    // restart the sysex data stream
+    ESP_RETURN_ON_ERROR(lpui_sysex_reset(ui, LPUI_SYSEX_COMMAND_SET_LEDS),
+        TAG, "Failed to reset sysex buffer");
+
+    // draw all visible steps
+    for (uint16_t i = 0; i < size->width * size->height; i++) {
+        uint16_t step_position = editor->step_offset + i;
+        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, pattern, step_position),
+            TAG, "Failed to draw step");
+    }
+
+    // finish and send the sysex data
     ESP_RETURN_ON_ERROR(lpui_sysex_commit(ui),
         TAG, "Failed to commit sysex buffer");
 
@@ -124,11 +149,16 @@ esp_err_t pattern_editor_update(pattern_editor_t *editor) {
 
     // draw previous and new steps only
     if (pattern->step_position != editor->previous.step_position) {
-        ESP_RETURN_ON_ERROR(pattern_editor_draw_pattern(editor, pattern),
-            TAG, "Failed to redraw pattern editor");
+        ESP_RETURN_ON_ERROR(pattern_editor_draw_steps(editor, pattern, (uint16_t[]) {
+            editor->previous.step_position,
+            pattern->step_position
+        }, 2),
+            TAG, "Failed to redraw previous step");
 
         // store the updated step position
         editor->previous.step_position = pattern->step_position;
+
+        return ESP_OK;
     }
 
     return ESP_OK;

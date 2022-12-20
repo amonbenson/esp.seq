@@ -54,10 +54,11 @@ static esp_err_t lp_clear(controller_launchpad_t *controller) {
     return ESP_OK;
 }
 
-static esp_err_t controller_launchpad_send_lpui(controller_launchpad_t *controller) {
-    return controller_midi_send_sysex(&controller->super,
-        controller->ui.buffer,
-        controller->ui.buffer_size);
+static esp_err_t controller_launchpad_ui_sysex_ready(void *context, lpui_t *ui, uint8_t *buffer, size_t length) {
+    controller_launchpad_t *controller = context;
+
+    // pass the sysex to the midi send callback
+    return controller_midi_send_sysex(&controller->super, buffer, length);
 }
 
 esp_err_t controller_launchpad_init(void *context) {
@@ -65,7 +66,13 @@ esp_err_t controller_launchpad_init(void *context) {
     controller_launchpad_t *controller = context;
 
     // setup launchpad ui
-    ret = lpui_init(&controller->ui);
+    const lpui_config_t ui_config = {
+        .callbacks = {
+            .context = controller,
+            .sysex_ready = controller_launchpad_ui_sysex_ready
+        }
+    };
+    ret = lpui_init(&controller->ui, &ui_config);
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to initialize launchpad ui");
 
     // select programmer layout in standalone mode
@@ -82,6 +89,7 @@ esp_err_t controller_launchpad_init(void *context) {
     // initialize pattern editor
     controller->pattern_editor = (lpui_pattern_editor_t) {
         .cmp = {
+            .ui = &controller->ui,
             .pos = { x: 1, y: 5 },
             .size = { width: 8, height: 4 },
         },
@@ -94,6 +102,7 @@ esp_err_t controller_launchpad_init(void *context) {
     // initialize piano editor
     controller->piano_editor = (lpui_piano_editor_t) {
         .cmp = {
+            .ui = &controller->ui,
             .pos = { x: 1, y: 1 },
             .size = { width: 8, height: 4 }
         }
@@ -150,16 +159,8 @@ esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t 
 
     switch (event) {
         case SEQUENCER_TICK:
+            // update the pattern editor
             lpui_pattern_editor_set_pattern(&controller->pattern_editor, pattern);
-
-            // TODO: this should be moved somewhere central
-            if (controller->pattern_editor.cmp.redraw_required) {
-                lpui_pattern_editor_draw(&controller->ui, &controller->pattern_editor);
-                controller_launchpad_send_lpui(controller);
-
-                lpui_piano_editor_draw(&controller->ui, &controller->piano_editor);
-                controller_launchpad_send_lpui(controller);
-            }
 
             break;
         default:

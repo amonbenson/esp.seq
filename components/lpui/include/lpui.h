@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 #include <esp_err.h>
+#include "callback.h"
+#include "lpui_types.h"
 #include "pattern.h"
 
 
@@ -20,26 +22,15 @@
 #define LPUI_COLOR_PIANO_PRESSED LPUI_COLOR(0x3f, 0x3f, 0x3f)
 
 
-typedef struct {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} lpui_color_t;
+typedef struct lpui_t lpui_t;
+CALLBACK_DECLARE(lpui_sysex_ready, esp_err_t,
+    lpui_t *ui, uint8_t *buffer, size_t length);
+
 
 typedef struct {
-    uint8_t x;
-    uint8_t y;
-} lpui_position_t;
-
-typedef struct {
-    uint8_t width;
-    uint8_t height;
-} lpui_size_t;
-
-typedef struct {
+    lpui_t *ui;
     lpui_position_t pos;
     lpui_size_t size;
-    bool redraw_required;
 } lpui_component_t;
 
 typedef struct {
@@ -55,19 +46,24 @@ typedef struct {
     lpui_component_t cmp;
 } lpui_piano_editor_t;
 
+
 typedef struct {
+    struct {
+        void *context;
+        CALLBACK_TYPE(lpui_sysex_ready) sysex_ready;
+    } callbacks;
+} lpui_config_t;
+
+struct lpui_t {
+    lpui_config_t config;
+
     uint8_t *buffer;
     uint8_t *buffer_ptr;
-    uint8_t buffer_size;
-} lpui_t;
+};
 
 
-esp_err_t lpui_init(lpui_t *ui);
+esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config);
 esp_err_t lpui_free(lpui_t *ui);
-
-
-lpui_color_t lpui_color_darken(lpui_color_t color);
-lpui_color_t lpui_color_lighten(lpui_color_t color);
 
 
 void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor);

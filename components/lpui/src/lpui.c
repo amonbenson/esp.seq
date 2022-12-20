@@ -2,6 +2,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <esp_check.h>
+
+
+static const char *TAG = "lpui";
 
 
 // set leds rgb command
@@ -14,7 +18,10 @@ static const int8_t lpui_piano_editor_note_map[2][8] = {
 };
 
 
-esp_err_t lpui_init(lpui_t *ui) {
+esp_err_t lpui_init(lpui_t *ui, const lpui_config_t *config) {
+    // store the config
+    ui->config = *config;
+
     // allocate the sysex buffer
     ui->buffer = calloc(LPUI_SYSEX_BUFFER_SIZE, sizeof(uint8_t));
     if (ui->buffer == NULL) {
@@ -25,7 +32,6 @@ esp_err_t lpui_init(lpui_t *ui) {
     memcpy(ui->buffer, lpui_sysex_header, sizeof(lpui_sysex_header));
 
     ui->buffer_ptr = ui->buffer;
-    ui->buffer_size = 0;
     return ESP_OK;
 }
 
@@ -35,29 +41,22 @@ esp_err_t lpui_free(lpui_t *ui) {
 }
 
 
-inline lpui_color_t lpui_color_darken(lpui_color_t color) {
-    return (lpui_color_t) {
-        .red = color.red / 16,
-        .green = color.green / 16,
-        .blue = color.blue / 16,
-    };
+static bool lpui_sysex_buffer_has_space(lpui_t *ui, size_t size) {
+    return ui->buffer_ptr + size < ui->buffer + LPUI_SYSEX_BUFFER_SIZE;
 }
 
-inline lpui_color_t lpui_color_lighten(lpui_color_t color) {
-    return (lpui_color_t) {
-        .red = color.red + (0xff - color.red) / 16,
-        .green = color.green + (0xff - color.green) / 16,
-        .blue = color.blue + (0xff - color.blue) / 16,
-    };
-}
-
-
-static void lpui_sysex_start(lpui_t *ui) {
-    // reset the buffer pointer and write the command type
+static esp_err_t lpui_sysex_start(lpui_t *ui) {
+    // reset the buffer pointer right after the header
     ui->buffer_ptr = ui->buffer + sizeof(lpui_sysex_header);
+
+    return ESP_OK;
 }
 
-static void lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_color_t color) {
+static esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_color_t color) {
+    // validate the buffer size
+    ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 4), ESP_ERR_NO_MEM,
+        TAG, "not enough space in sysex buffer");
+
     // write the position
     *ui->buffer_ptr++ = pos.x + pos.y * 10;
 
@@ -65,11 +64,20 @@ static void lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_color
     *ui->buffer_ptr++ = color.red;
     *ui->buffer_ptr++ = color.green;
     *ui->buffer_ptr++ = color.blue;
+
+    return ESP_OK;
 }
 
-static void lpui_sysex_end(lpui_t *ui) {
+static esp_err_t lpui_sysex_commit(lpui_t *ui) {
+    // validate the buffer size
+    ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 1), ESP_ERR_NO_MEM,
+        TAG, "not enough space in sysex buffer");
+
     *ui->buffer_ptr++ = 0xF7;
-    ui->buffer_size = ui->buffer_ptr - ui->buffer;
+    size_t length = ui->buffer_ptr - ui->buffer;
+
+    // invoke the sysex ready callback to render out the buffer
+    return CALLBACK_INVOKE(&ui->config.callbacks, sysex_ready, ui, ui->buffer, length);
 }
 
 
@@ -120,8 +128,7 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor) {
         }
     }
 
-    lpui_sysex_end(ui);
-    editor->cmp.redraw_required = false;
+    lpui_sysex_commit(ui);
 }
 
 void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *pattern) {
@@ -129,7 +136,7 @@ void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *p
     if (pattern == NULL) {
         if (editor->pattern != NULL) {
             editor->pattern = NULL;
-            editor->cmp.redraw_required = true;
+            // TODO: draw empty pattern
         }
         return;
     }
@@ -147,14 +154,14 @@ void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *p
     uint8_t page_steps = editor->cmp.size.width * editor->cmp.size.height;
     editor->page = pattern->step_position / page_steps;
 
-    // enable redraw flag
-    editor->cmp.redraw_required = true;
+    // TODO: update required parts only
+    lpui_pattern_editor_draw(editor->cmp.ui, editor);
 }
 
 void lpui_pattern_editor_set_track_id(lpui_pattern_editor_t *editor, int track_id) {
     // redraw if the id changed on an active pattern
     if (editor->pattern && editor->track_id != track_id) {
-        editor->cmp.redraw_required = true;
+        // TODO: redraw entire pattern
     }
 
     editor->track_id = track_id;
@@ -191,6 +198,5 @@ void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor) {
         }
     }
 
-    lpui_sysex_end(ui);
-    editor->cmp.redraw_required = false;
+    lpui_sysex_commit(ui);
 }

@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <esp_err.h>
-#include "controllers/launchpad/launchpad_types.h"
 #include "pattern.h"
 
 
@@ -16,6 +15,9 @@
     LPUI_COLOR(0x20, 0x00, 0x30), \
     LPUI_COLOR(0x20, 0x20, 0x20)
 #define LPUI_COLOR_PLAYHEAD LPUI_COLOR(0x3f, 0x3f, 0x3f)
+
+#define LPUI_COLOR_PIANO_RELEASED LPUI_COLOR(0x20, 0x20, 0x20)
+#define LPUI_COLOR_PIANO_PRESSED LPUI_COLOR(0x3f, 0x3f, 0x3f)
 
 
 typedef struct {
@@ -50,6 +52,10 @@ typedef struct {
 } lpui_pattern_editor_t;
 
 typedef struct {
+    lpui_component_t cmp;
+} lpui_piano_editor_t;
+
+typedef struct {
     uint8_t *buffer;
     uint8_t *buffer_ptr;
     uint8_t buffer_size;
@@ -68,3 +74,6 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor);
 
 void lpui_pattern_editor_set_pattern(lpui_pattern_editor_t *editor, pattern_t *pattern);
 void lpui_pattern_editor_set_track_id(lpui_pattern_editor_t *editor, int track_id);
+
+
+void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor);

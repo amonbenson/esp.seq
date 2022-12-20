@@ -140,7 +140,7 @@ static void usb_midi_data_out_callback(usb_transfer_t *transfer) {
 
     // release the transfer lock
     xSemaphoreGive(usb_midi->transfer_lock);
-    ESP_LOGI(TAG_OUT, "data out callback");
+    //ESP_LOGI(TAG_OUT, "data out callback");
 }
 
 void usb_midi_out_task(void *arg) {
@@ -162,9 +162,10 @@ void usb_midi_out_task(void *arg) {
         }
 
         // submit the transfer
-        ESP_LOGI(TAG_OUT, "transfering %d bytes", transfer_size);
+        //ESP_LOGI(TAG_OUT, "transfering %d bytes", transfer_size);
         usb_host_transfer_submit(usb_midi->out.transfer);
 
+        // NOTE: transfer_lock will be released from usb_midi_data_out_callback
         xSemaphoreGive(usb_midi->lock);
         taskYIELD();
     }
@@ -439,6 +440,14 @@ esp_err_t usb_midi_init(const usb_midi_config_t *config, usb_midi_t *usb_midi) {
     return ESP_OK;
 }
 
+static esp_err_t usb_midi_queue_out_packet(usb_midi_t *usb_midi, usb_midi_packet_t *packet) {
+    if (xQueueSend(usb_midi->out.packet_queue, packet, 0)) {
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
 esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
     esp_err_t ret;
     usb_midi_packet_t packet = { 0 };
@@ -459,7 +468,8 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
         packet.cn_cin = message->command >> 4;
         ESP_GOTO_ON_ERROR(midi_message_encode(message, packet.data, 3), exit,
             TAG_OUT, "failed to encode message");
-        xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+        ESP_GOTO_ON_ERROR(usb_midi_queue_out_packet(usb_midi, &packet), exit,
+            TAG_OUT, "queue full");
 
         ret = ESP_OK;
         goto exit;
@@ -478,7 +488,8 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
             while (sysex_length > 3) {
                 packet.cn_cin = USB_MIDI_CIN_SYSEX_START_CONT;
                 memcpy(packet.data, sysex_data, 3);
-                xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+                ESP_GOTO_ON_ERROR(usb_midi_queue_out_packet(usb_midi, &packet), exit,
+                    TAG_OUT, "queue full");
 
                 sysex_data += 3;
                 sysex_length -= 3;
@@ -487,12 +498,14 @@ esp_err_t usb_midi_send(usb_midi_t *usb_midi, const midi_message_t *message) {
             // store the trailing packet
             packet.cn_cin = USB_MIDI_CIN_SYSEX_END_1_SYSCOM_1 + sysex_length - 1;
             memcpy(packet.data, sysex_data, sysex_length);
-            xQueueSend(usb_midi->out.packet_queue, &packet, portMAX_DELAY);
+            ESP_GOTO_ON_ERROR(usb_midi_queue_out_packet(usb_midi, &packet), exit,
+                TAG_OUT, "queue full");
 
             break;
         default:
             ESP_GOTO_ON_ERROR(ESP_ERR_NOT_SUPPORTED, exit,
                 TAG_OUT, "unsupported midi command %d", message->command);
+            break;
     }
 
     ret = ESP_OK;

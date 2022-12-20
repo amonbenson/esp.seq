@@ -1,11 +1,17 @@
-#include "controllers/launchpad/lpui.h"
+#include "lpui.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 
-static const uint8_t lpui_sysex_header[] = { LP_SYSEX_HEADER };
+// set leds rgb command
+static const uint8_t lpui_sysex_header[] = { 0xF0, 0x00, 0x20, 0x29, 0x02, 0x10, 0x0B };
 static const lpui_color_t lpui_color_patterns[] = { LPUI_COLOR_PATTERNS };
+
+static const int8_t lpui_piano_editor_note_map[2][8] = {
+    { 0, 2, 4, 5, 7, 9, 11, 12 },
+    { -1, 1, 3, -1, 6, 8, 10, -1 }
+};
 
 
 esp_err_t lpui_init(lpui_t *ui) {
@@ -29,7 +35,7 @@ esp_err_t lpui_free(lpui_t *ui) {
 }
 
 
-lpui_color_t lpui_color_darken(lpui_color_t color) {
+inline lpui_color_t lpui_color_darken(lpui_color_t color) {
     return (lpui_color_t) {
         .red = color.red / 16,
         .green = color.green / 16,
@@ -37,7 +43,7 @@ lpui_color_t lpui_color_darken(lpui_color_t color) {
     };
 }
 
-lpui_color_t lpui_color_lighten(lpui_color_t color) {
+inline lpui_color_t lpui_color_lighten(lpui_color_t color) {
     return (lpui_color_t) {
         .red = color.red + (0xff - color.red) / 16,
         .green = color.green + (0xff - color.green) / 16,
@@ -46,23 +52,19 @@ lpui_color_t lpui_color_lighten(lpui_color_t color) {
 }
 
 
-static void lpui_sysex_start(lpui_t *ui, uint8_t command) {
+static void lpui_sysex_start(lpui_t *ui) {
     // reset the buffer pointer and write the command type
     ui->buffer_ptr = ui->buffer + sizeof(lpui_sysex_header);
-    *ui->buffer_ptr++ = command;
 }
 
-static void lpui_sysex_color(lpui_t *ui, const lpui_color_t color) {
+static void lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, const lpui_color_t color) {
+    // write the position
+    *ui->buffer_ptr++ = pos.x + pos.y * 10;
+
     // write rgb components
     *ui->buffer_ptr++ = color.red;
     *ui->buffer_ptr++ = color.green;
     *ui->buffer_ptr++ = color.blue;
-}
-
-static void lpui_sysex_led_color(lpui_t *ui, lpui_position_t pos, const lpui_color_t color) {
-    // write the position and color
-    *ui->buffer_ptr++ = pos.x + pos.y * 10;
-    lpui_sysex_color(ui, color);
 }
 
 static void lpui_sysex_end(lpui_t *ui) {
@@ -103,7 +105,7 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor) {
     uint8_t page_steps = size->width * size->height;
     uint8_t step_offset = editor->page * page_steps;
 
-    lpui_sysex_start(ui, LP_SET_LEDS_RGB);
+    lpui_sysex_start(ui);
 
     lpui_position_t p;
     for (p.y = 0; p.y < size->height; p.y++) {
@@ -111,7 +113,7 @@ void lpui_pattern_editor_draw(lpui_t *ui, lpui_pattern_editor_t *editor) {
             uint8_t step_index = p.y * size->width + p.x + step_offset;
             lpui_color_t color = lpui_pattern_editor_get_step_color(editor, step_index);
 
-            lpui_sysex_led_color(ui, (lpui_position_t) {
+            lpui_sysex_add_led(ui, (lpui_position_t) {
                 .x = pos->x + p.x,
                 .y = pos->y + size->height - 1 - p.y
             }, color);
@@ -156,4 +158,39 @@ void lpui_pattern_editor_set_track_id(lpui_pattern_editor_t *editor, int track_i
     }
 
     editor->track_id = track_id;
+}
+
+
+static lpui_color_t lpui_piano_editor_get_key_color(lpui_piano_editor_t *editor, int8_t key) {
+    // check if key is valid
+    if (key == -1) {
+        return LPUI_COLOR_BLACK;
+    }
+
+    // TODO: different pressed color
+    return LPUI_COLOR_PIANO_RELEASED;
+}
+
+void lpui_piano_editor_draw(lpui_t *ui, lpui_piano_editor_t *editor) {
+    lpui_position_t *pos = &editor->cmp.pos;
+    lpui_size_t *size = &editor->cmp.size;
+
+    lpui_sysex_start(ui);
+
+    lpui_position_t p;
+    for (p.y = 0; p.y < size->height; p.y++) {
+        for (p.x = 0; p.x < size->width; p.x++) {
+            uint8_t octave = p.y / 2;
+            uint8_t key = lpui_piano_editor_note_map[p.y % 2][p.x % 8];
+            lpui_color_t color = lpui_piano_editor_get_key_color(editor, key);
+
+            lpui_sysex_add_led(ui, (lpui_position_t) {
+                .x = pos->x + p.x,
+                .y = pos->y + p.y
+            }, color);
+        }
+    }
+
+    lpui_sysex_end(ui);
+    editor->cmp.redraw_required = false;
 }

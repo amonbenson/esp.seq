@@ -10,7 +10,7 @@
 #include <sequencer.h>
 
 #include <controller.h>
-#include <controllers/launchpad/launchpad.h>
+#include <controllers/launchpad.h>
 #include <controllers/generic.h>
 
 

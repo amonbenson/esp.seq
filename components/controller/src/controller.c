@@ -72,15 +72,15 @@ esp_err_t controller_midi_send_sysex(controller_t *controller, const uint8_t *da
         },
     };
 
-    printf("esp --> controller: ");
-    midi_message_print(&message);
+    //printf("esp --> controller: ");
+    //midi_message_print(&message);
 
     return controller_midi_send(controller, &message);
 }
 
 esp_err_t controller_midi_recv(controller_t *controller, const midi_message_t *message) {
-    printf("controller --> esp: ");
-    midi_message_print(message);
+    //printf("controller --> esp: ");
+    //midi_message_print(message);
 
     return CALLBACK_INVOKE(&controller->functions, midi_recv,
         message);

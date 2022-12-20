@@ -1,8 +1,8 @@
-#include "controllers/launchpad/launchpad.h"
+#include "controllers/launchpad.h"
 #include <esp_log.h>
 #include <esp_check.h>
 #include <string.h>
-#include "controllers/launchpad/launchpad_types.h"
+#include "controllers/launchpad_types.h"
 
 
 static const char *TAG = "launchpad controller";
@@ -92,6 +92,12 @@ esp_err_t controller_launchpad_init(void *context) {
     };
 
     // initialize piano editor
+    controller->piano_editor = (lpui_piano_editor_t) {
+        .cmp = {
+            .pos = { x: 1, y: 1 },
+            .size = { width: 8, height: 4 }
+        }
+    };
 
     return ESP_OK;
 }
@@ -149,6 +155,9 @@ esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t 
             // TODO: this should be moved somewhere central
             if (controller->pattern_editor.cmp.redraw_required) {
                 lpui_pattern_editor_draw(&controller->ui, &controller->pattern_editor);
+                controller_launchpad_send_lpui(controller);
+
+                lpui_piano_editor_draw(&controller->ui, &controller->piano_editor);
                 controller_launchpad_send_lpui(controller);
             }
 

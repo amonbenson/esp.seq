@@ -16,7 +16,7 @@ esp_err_t piano_editor_init(piano_editor_t *editor, const piano_editor_config_t 
 
     const lpui_component_functions_t functions = {
         .context = editor,
-        .button_event = piano_editor_button_event
+        .key_event = piano_editor_key_event
     };
     lpui_component_init(&editor->cmp, &config->cmp_config, &functions);
 
@@ -46,7 +46,7 @@ static esp_err_t lpui_piano_editor_draw(lpui_t *ui, piano_editor_t *editor) {
             uint8_t key = lpui_piano_editor_note_map[p.y % 2][p.x % 8];
             lpui_color_t color = lpui_piano_editor_get_key_color(editor, key);
 
-            lpui_sysex_add_led(ui, (lpui_position_t) {
+            lpui_sysex_add_led_color(ui, (lpui_position_t) {
                 .x = pos->x + p.x,
                 .y = pos->y + p.y
             }, color);
@@ -62,7 +62,7 @@ esp_err_t piano_editor_update(piano_editor_t *editor) {
     return ESP_OK;
 }
 
-esp_err_t piano_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity) {
+esp_err_t piano_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity) {
     ESP_LOGI(TAG, "piano editor button event at (%d, %d) with velocity %d", pos.x, pos.y, velocity);
 
     return ESP_OK;

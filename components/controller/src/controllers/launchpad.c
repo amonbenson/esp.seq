@@ -13,14 +13,16 @@ static const uint8_t lp_sysex_prog_layout[] = { LP_SYSEX_HEADER, 0x2C, 0x03, 0xF
 static const uint8_t lp_sysex_clear_grid[] = {
     LP_SYSEX_HEADER,
     LP_SYSEX_COMMAND_SET_LEDS_ALL,
-    LP_SYSEX_COLOR_CLEAR,
+    0x00,
     0xF7
 };
 static const uint8_t lp_sysex_clear_side_led[] = {
     LP_SYSEX_HEADER,
-    LP_SYSEX_COMMAND_SET_LEDS,
+    LP_SYSEX_COMMAND_SET_LEDS_RGB,
     LP_SYSEX_SIDE_LED,
-    LP_SYSEX_COLOR_CLEAR,
+    0x00,
+    0x00,
+    0x00,
     0xF7
 };
 
@@ -62,6 +64,20 @@ static esp_err_t _lpui_sysex_ready(void *context, lpui_t *ui, uint8_t *buffer, s
     return controller_midi_send_sysex(&controller->super, buffer, length);
 }
 
+static esp_err_t _play_button_pressed(void *context, button_t *button) {
+    controller_launchpad_t *controller = context;
+
+    // start the sequencer
+    return sequencer_play(controller->super.config.sequencer);
+}
+
+static esp_err_t _play_button_released(void *context, button_t *button) {
+    controller_launchpad_t *controller = context;
+
+    // stop the sequencer
+    return sequencer_pause(controller->super.config.sequencer);
+}
+
 static esp_err_t _pattern_editor_step_selected(void *context, pattern_editor_t *editor, uint16_t step_position) {
     return controller_launchpad_select_step(context, step_position);
 }
@@ -93,6 +109,23 @@ esp_err_t controller_launchpad_init(void *context) {
     // clear all leds
     ret = lp_clear(context);
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to clear launchpad");
+
+    // initialize the play and record buttons
+    const button_config_t play_button_config = {
+        .cmp_config = {
+            .pos = { x: 0, y: 2 }
+        },
+        .callbacks = {
+            .context = controller,
+            .pressed = _play_button_pressed,
+            .released = _play_button_released
+        },
+        .color = LPUI_COLOR_GREEN,
+        .mode = BUTTON_MODE_TOGGLE
+    };
+    button_init(&controller->play_button, &play_button_config);
+    lpui_add_component(&controller->ui, &controller->play_button.cmp);
+    button_draw(&controller->play_button);
 
     // initialize pattern editor
     const pattern_editor_config_t pe_config = (pattern_editor_config_t) {
@@ -141,7 +174,6 @@ esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *me
 
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
     controller_launchpad_t *controller = context;
-    pattern_editor_t *pe = &controller->pattern_editor;
 
     switch (event) {
         case SEQUENCER_TICK:
@@ -174,21 +206,24 @@ esp_err_t controller_launchpad_select_step(void *context, uint16_t step_position
     controller_launchpad_t *controller = context;
     pattern_t *pattern = controller->pattern_editor.pattern;
 
+    // TODO: only do this if we are in a specific step edit mode
+    /* if (pattern && controller->super.config.sequencer->playing) {
+        // toggle the step velocity
+        pattern_step_t *step = &pattern->steps[step_position];
+        if (step->atomic.velocity > 0) {
+            step->atomic.velocity = 0;
+        } else {
+            step->atomic.velocity = 127;
+        }
+
+        // redraw that specific step
+        ESP_RETURN_ON_ERROR(pattern_editor_draw_steps(&controller->pattern_editor, &step_position, 1),
+            TAG, "Failed to redraw pattern editor step");
+    } */
+
     // set the new selected step position
     if (controller->selected_step_position == step_position) return ESP_OK;
     controller->selected_step_position = step_position;
-
-    // toggle the step velocity
-    pattern_step_t *step = &pattern->steps[step_position];
-    if (step->atomic.velocity > 0) {
-        step->atomic.velocity = 0;
-    } else {
-        step->atomic.velocity = 127;
-    }
-
-    // redraw that specific step
-    ESP_RETURN_ON_ERROR(pattern_editor_draw_steps(&controller->pattern_editor, &step_position, 1),
-        TAG, "Failed to redraw pattern editor step");
 
     return ESP_OK;
 }

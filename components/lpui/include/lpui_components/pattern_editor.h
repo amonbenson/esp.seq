@@ -32,8 +32,7 @@ struct pattern_editor_t {
 
 
 esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_config_t *config);
-esp_err_t pattern_editor_update(pattern_editor_t *editor);
-esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity);
+esp_err_t pattern_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity);
 
 esp_err_t pattern_editor_draw(pattern_editor_t *editor);
 esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, uint16_t step_positions[], size_t n);

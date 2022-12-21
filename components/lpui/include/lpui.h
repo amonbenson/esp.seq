@@ -13,6 +13,7 @@
 
 #define LPUI_COLOR(r, g, b) ((lpui_color_t) { .red = r, .green = g, .blue = b })
 #define LPUI_COLOR_BLACK LPUI_COLOR(0x00, 0x00, 0x00)
+#define LPUI_COLOR_GREEN LPUI_COLOR(0x00, 0x3f, 0x00)
 #define LPUI_COLOR_PATTERNS \
     LPUI_COLOR(0x00, 0x30, 0x20), \
     LPUI_COLOR(0x30, 0x20, 0x00), \
@@ -24,12 +25,12 @@
 #define LPUI_COLOR_PIANO_PRESSED LPUI_COLOR(0x3f, 0x3f, 0x3f)
 
 
-CALLBACK_DECLARE(lpui_component_button_event, esp_err_t,
+CALLBACK_DECLARE(lpui_component_key_event, esp_err_t,
     const lpui_position_t pos, uint8_t velocity);
 
 typedef struct {
     void *context;
-    CALLBACK_TYPE(lpui_component_button_event) button_event;
+    CALLBACK_TYPE(lpui_component_key_event) key_event;
 } lpui_component_functions_t;
 
 typedef struct {
@@ -80,7 +81,7 @@ esp_err_t lpui_remove_component(lpui_t *ui, lpui_component_t *cmp);
 
 esp_err_t lpui_sysex_reset(lpui_t *ui, uint8_t command);
 esp_err_t lpui_sysex_add_color(lpui_t *ui, lpui_color_t color);
-esp_err_t lpui_sysex_add_led(lpui_t *ui, lpui_position_t pos, lpui_color_t color);
+esp_err_t lpui_sysex_add_led_color(lpui_t *ui, lpui_position_t pos, lpui_color_t color);
 esp_err_t lpui_sysex_commit(lpui_t *ui);
 
 

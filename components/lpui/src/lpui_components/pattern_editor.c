@@ -13,9 +13,10 @@ esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_con
 
     const lpui_component_functions_t functions = {
         .context = editor,
-        .button_event = pattern_editor_button_event
+        .key_event = pattern_editor_key_event
     };
-    lpui_component_init(&editor->cmp, &config->cmp_config, &functions);
+    ESP_RETURN_ON_ERROR(lpui_component_init(&editor->cmp, &config->cmp_config, &functions),
+        TAG, "failed to initialize component");
 
     editor->track_id = 0;
     editor->pattern = NULL;
@@ -46,12 +47,12 @@ static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor, uint16_t st
     // check if the pattern is valid
     pattern_t *pattern = editor->pattern;
     if (pattern == NULL) {
-        return lpui_sysex_add_led(ui, pos, LPUI_COLOR_BLACK);
+        return lpui_sysex_add_led_color(ui, pos, LPUI_COLOR_BLACK);
     }
 
     // check if the step index is valid
     if (step_position >= pattern->config.step_length) {
-        return lpui_sysex_add_led(ui, pos, LPUI_COLOR_BLACK);
+        return lpui_sysex_add_led_color(ui, pos, LPUI_COLOR_BLACK);
     }
 
     // get the base color
@@ -60,11 +61,11 @@ static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor, uint16_t st
 
     pattern_step_t *step = &pattern->steps[step_position];
     if (step_position == pattern->step_position) {
-        return lpui_sysex_add_led(ui, pos, LPUI_COLOR_PLAYHEAD);
+        return lpui_sysex_add_led_color(ui, pos, LPUI_COLOR_PLAYHEAD);
     } else if (step->atomic.velocity > 0) {
-        return lpui_sysex_add_led(ui, pos, base_color);
+        return lpui_sysex_add_led_color(ui, pos, base_color);
     } else {
-        return lpui_sysex_add_led(ui, pos, lpui_color_darken(base_color));
+        return lpui_sysex_add_led_color(ui, pos, lpui_color_darken(base_color));
     }
 }
 
@@ -155,7 +156,7 @@ esp_err_t pattern_editor_draw(pattern_editor_t *editor) {
     return ESP_OK;
 } */
 
-esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity) {
+esp_err_t pattern_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity) {
     pattern_editor_t *editor = (pattern_editor_t *) context;
 
     if (velocity == 0) {

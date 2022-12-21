@@ -254,7 +254,7 @@ void app_main(void) {
     }
 
     // start the sequencer
-    ESP_ERROR_CHECK(sequencer_play(&sequencer));
+    //ESP_ERROR_CHECK(sequencer_play(&sequencer));
 
     vTaskDelete(NULL);
 }

@@ -4,6 +4,7 @@
 #include "midi_message.h"
 #include "launchpad_types.h"
 #include "lpui.h"
+#include "lpui_components/button.h"
 #include "lpui_components/pattern_editor.h"
 #include "lpui_components/piano_editor.h"
 
@@ -36,6 +37,8 @@ typedef struct {
     lpui_t ui;
     pattern_editor_t pattern_editor;
     piano_editor_t piano_editor;
+    button_t play_button;
+    button_t record_button;
 
     int selected_track_id;
     int16_t selected_step_position;

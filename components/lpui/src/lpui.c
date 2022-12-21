@@ -91,7 +91,7 @@ esp_err_t lpui_sysex_add_color(lpui_t *ui, const lpui_color_t color) {
     return ESP_OK;
 }
 
-esp_err_t lpui_sysex_add_led(lpui_t *ui, const lpui_position_t pos, const lpui_color_t color) {
+esp_err_t lpui_sysex_add_led_color(lpui_t *ui, const lpui_position_t pos, const lpui_color_t color) {
     // validate the buffer size
     ESP_RETURN_ON_FALSE(lpui_sysex_buffer_has_space(ui, 4), ESP_ERR_NO_MEM,
         TAG, "not enough space in sysex buffer");
@@ -158,9 +158,9 @@ esp_err_t lpui_midi_recv(lpui_t *ui, const midi_message_t *message) {
         // skip components that do not contain the position
         if (!lpui_component_contains_position(cmp, pos)) continue;
 
-        // invoke the button_event callback
-        ESP_RETURN_ON_ERROR(CALLBACK_INVOKE_REQUIRED(&cmp->functions, button_event, pos, velocity),
-            TAG, "component does not implement button_event callback");
+        // invoke the key_event callback
+        ESP_RETURN_ON_ERROR(CALLBACK_INVOKE_REQUIRED(&cmp->functions, key_event, pos, velocity),
+            TAG, "component does not implement key_event callback");
     }
 
     return ESP_OK;

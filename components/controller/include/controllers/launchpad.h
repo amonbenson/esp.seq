@@ -41,7 +41,7 @@ typedef struct {
     button_t record_button;
 
     int selected_track_id;
-    int16_t selected_step_position;
+    pattern_step_t *selected_step;
 } controller_launchpad_t;
 
 
@@ -53,5 +53,5 @@ esp_err_t controller_launchpad_free(void *context);
 esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *message);
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data);
 
-esp_err_t controller_launchpad_select_track(void *context, int track_id);
-esp_err_t controller_launchpad_select_step(void *context, uint16_t step_position);
+esp_err_t controller_launchpad_select_track(controller_launchpad_t *controller, int track_id);
+esp_err_t controller_launchpad_select_step(controller_launchpad_t *controller, pattern_step_t *step);

@@ -6,13 +6,16 @@
 
 
 typedef struct pattern_editor_t pattern_editor_t;
-CALLBACK_DECLARE(pattern_editor_step_select, esp_err_t,
+CALLBACK_DECLARE(pattern_editor_pressed, esp_err_t,
     pattern_editor_t *editor, uint16_t step_position);
+CALLBACK_DECLARE(pattern_editor_released, esp_err_t,
+    pattern_editor_t *editor, uint16_t step_position)
 
 typedef struct {
     struct {
         void *context;
-        CALLBACK_TYPE(pattern_editor_step_select) step_selected;
+        CALLBACK_TYPE(pattern_editor_pressed) pressed;
+        CALLBACK_TYPE(pattern_editor_released) released;
     } callbacks;
     lpui_component_config_t cmp_config;
 } pattern_editor_config_t;

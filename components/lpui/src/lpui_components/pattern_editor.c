@@ -159,10 +159,6 @@ esp_err_t pattern_editor_draw(pattern_editor_t *editor) {
 esp_err_t pattern_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity) {
     pattern_editor_t *editor = (pattern_editor_t *) context;
 
-    if (velocity == 0) {
-        return ESP_OK;
-    }
-
     pattern_t *pattern = editor->pattern;
     if (pattern == NULL) {
         return ESP_OK;
@@ -183,8 +179,13 @@ esp_err_t pattern_editor_key_event(void *context, const lpui_position_t pos, uin
     }
 
     // invoke the step select callback
-    ESP_RETURN_ON_ERROR(CALLBACK_INVOKE(&editor->config.callbacks, step_selected, editor, step_position),
-        TAG, "Failed to invoke step select callback");
+    if (velocity > 0) {
+        ESP_RETURN_ON_ERROR(CALLBACK_INVOKE(&editor->config.callbacks, pressed, editor, step_position),
+            TAG, "Failed to invoke pressed callback");
+    } else {
+        ESP_RETURN_ON_ERROR(CALLBACK_INVOKE(&editor->config.callbacks, released, editor, step_position),
+            TAG, "Failed to invoke released callback");
+    }
 
     return ESP_OK;
 }

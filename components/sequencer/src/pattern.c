@@ -126,3 +126,11 @@ pattern_step_t *pattern_get_next_step(pattern_t *pattern) {
     // return that step
     return &pattern->steps[position];
 }
+
+inline uint32_t pattern_step_to_ticks(pattern_t *pattern, uint16_t step) {
+    return step * pattern->config.resolution;
+}
+
+inline uint16_t pattern_ticks_to_step(pattern_t *pattern, uint32_t ticks) {
+    return ticks / pattern->config.resolution;
+}

@@ -63,3 +63,6 @@ esp_err_t pattern_tick(pattern_t *pattern);
 pattern_step_t *pattern_get_active_step(pattern_t *pattern);
 pattern_step_t *pattern_get_previous_step(pattern_t *pattern);
 pattern_step_t *pattern_get_next_step(pattern_t *pattern);
+
+uint32_t pattern_step_to_ticks(pattern_t *pattern, uint16_t step);
+uint16_t pattern_ticks_to_step(pattern_t *pattern, uint32_t ticks);

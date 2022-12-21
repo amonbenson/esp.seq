@@ -17,21 +17,19 @@ esp_err_t pattern_editor_init(pattern_editor_t *editor, const pattern_editor_con
     };
     lpui_component_init(&editor->cmp, &config->cmp_config, &functions);
 
+    editor->track_id = 0;
+    editor->pattern = NULL;
+
     editor->page = 0;
     editor->step_offset = 0;
-    editor->track_id = 0;
 
-    editor->previous.pattern = 0;
-    editor->previous.page = 0;
-    editor->previous.step_position = 0;
+    editor->step_position = 0;
 
     return ESP_OK;
 }
 
 
-static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor,
-        pattern_t *pattern,
-        uint16_t step_position) {
+static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor, uint16_t step_position) {
     lpui_t *ui = editor->cmp.ui;
     lpui_position_t *cmp_pos = &editor->cmp.config.pos;
     lpui_size_t *cmp_size = &editor->cmp.config.size;
@@ -46,6 +44,7 @@ static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor,
     };
 
     // check if the pattern is valid
+    pattern_t *pattern = editor->pattern;
     if (pattern == NULL) {
         return lpui_sysex_add_led(ui, pos, LPUI_COLOR_BLACK);
     }
@@ -69,7 +68,7 @@ static esp_err_t _pattern_editor_draw_step(pattern_editor_t *editor,
     }
 }
 
-esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern, uint16_t step_positions[], size_t n) {
+esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, uint16_t step_positions[], size_t n) {
     lpui_t *ui = editor->cmp.ui;
 
     // restart the sysex data stream
@@ -79,7 +78,7 @@ esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern
     // draw all visible steps
     for (uint16_t i = 0; i < n; i++) {
         uint16_t step_position = step_positions[i];
-        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, pattern, step_position),
+        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, step_position),
             TAG, "Failed to draw step");
     }
 
@@ -90,7 +89,7 @@ esp_err_t pattern_editor_draw_steps(pattern_editor_t *editor, pattern_t *pattern
     return ESP_OK;
 }
 
-esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *pattern) {
+esp_err_t pattern_editor_draw(pattern_editor_t *editor) {
     lpui_t *ui = editor->cmp.ui;
     lpui_size_t *size = &editor->cmp.config.size;
 
@@ -101,7 +100,7 @@ esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *patte
     // draw all visible steps
     for (uint16_t i = 0; i < size->width * size->height; i++) {
         uint16_t step_position = editor->step_offset + i;
-        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, pattern, step_position),
+        ESP_RETURN_ON_ERROR(_pattern_editor_draw_step(editor, step_position),
             TAG, "Failed to draw step");
     }
 
@@ -112,14 +111,12 @@ esp_err_t pattern_editor_draw_pattern(pattern_editor_t *editor, pattern_t *patte
     return ESP_OK;
 }
 
-esp_err_t pattern_editor_update(pattern_editor_t *editor) {
-    pattern_t *pattern = pattern_editor_get_active_pattern(editor);
-
+/* esp_err_t pattern_editor_update(pattern_editor_t *editor) {
     // draw empty pattern
     if (pattern == NULL) {
         if (editor->previous.pattern != NULL) {
             // TODO: special empty pattern function
-            ESP_RETURN_ON_ERROR(pattern_editor_draw_pattern(editor, pattern),
+            ESP_RETURN_ON_ERROR(pattern_editor_draw(editor),
                 TAG, "Failed to redraw pattern editor");
 
             editor->previous.pattern = NULL;
@@ -127,11 +124,6 @@ esp_err_t pattern_editor_update(pattern_editor_t *editor) {
 
         return ESP_OK;
     }
-
-    // update automatic scrolling
-    uint8_t page_steps = editor->cmp.config.size.width * editor->cmp.config.size.height;
-    editor->page = pattern->step_position / page_steps;
-    editor->step_offset = editor->page * page_steps;
 
     // draw complete pattern
     if (pattern != editor->previous.pattern || editor->page != editor->previous.page) {
@@ -161,7 +153,7 @@ esp_err_t pattern_editor_update(pattern_editor_t *editor) {
     }
 
     return ESP_OK;
-}
+} */
 
 esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, uint8_t velocity) {
     pattern_editor_t *editor = (pattern_editor_t *) context;
@@ -170,7 +162,7 @@ esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, 
         return ESP_OK;
     }
 
-    pattern_t *pattern = pattern_editor_get_active_pattern(editor);
+    pattern_t *pattern = editor->pattern;
     if (pattern == NULL) {
         return ESP_OK;
     }
@@ -197,19 +189,45 @@ esp_err_t pattern_editor_button_event(void *context, const lpui_position_t pos, 
 }
 
 
-pattern_t *pattern_editor_get_active_pattern(pattern_editor_t *editor) {
-    sequencer_t *sequencer = editor->config.sequencer;
-    track_t *track = &sequencer->tracks[editor->track_id];
-    return track_get_active_pattern(track);
-}
-
-esp_err_t pattern_editor_set_track_id(pattern_editor_t *editor, int track_id) {
-    // store the new track id if it changed
-    if (editor->track_id == track_id) {
+esp_err_t pattern_editor_set_pattern(pattern_editor_t *editor, int track_id, pattern_t *pattern) {
+    if (editor->track_id == track_id && editor->pattern == pattern) {
         return ESP_OK;
     }
-    editor->track_id = track_id;
 
-    // update and redraw the pattern editor
-    return pattern_editor_update(editor);
+    editor->track_id = track_id;
+    editor->pattern = pattern;
+
+    // full redraw
+    return pattern_editor_draw(editor);
+}
+
+esp_err_t pattern_editor_update_step_position(pattern_editor_t *editor) {
+    if (editor->pattern == NULL) return ESP_OK;
+
+    // get the step position from the active pattern
+    uint16_t step_position = editor->pattern->step_position;
+    if (editor->step_position == step_position) return ESP_OK;
+
+    // update the step position, but store the previous page and position
+    uint8_t prev_page = editor->page;
+    uint16_t prev_step_position = editor->step_position;
+    editor->step_position = step_position;
+    
+    // update automatic scrolling
+    if (editor->pattern) {
+        uint8_t page_steps = editor->cmp.config.size.width * editor->cmp.config.size.height;
+        editor->page = editor->pattern->step_position / page_steps;
+        editor->step_offset = editor->page * page_steps;
+    }
+
+    // if the page changed, redraw the whole pattern.
+    // otherwise, only redraw the previous and new step position
+    if (editor->page != prev_page) {
+        return pattern_editor_draw(editor);
+    } else {
+        return pattern_editor_draw_steps(editor, (uint16_t[]) {
+            prev_step_position,
+            editor->step_position
+        }, 2);
+    }
 }

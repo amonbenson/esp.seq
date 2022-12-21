@@ -160,3 +160,10 @@ esp_err_t sequencer_set_bpm(sequencer_t *sequencer, uint16_t bpm) {
 uint64_t sequencer_get_tick_period_us(sequencer_t *sequencer) {
     return (60000000 / (SEQ_PPQN * sequencer->config.bpm));
 }
+
+pattern_t *sequencer_get_active_pattern(sequencer_t *sequencer, int track_id) {
+    if (track_id < 0 || track_id >= SEQUENCER_NUM_TRACKS) return NULL;
+
+    track_t *track = &sequencer->tracks[track_id];
+    return track_get_active_pattern(track);
+}

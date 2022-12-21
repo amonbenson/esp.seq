@@ -54,22 +54,30 @@ static esp_err_t lp_clear(controller_launchpad_t *controller) {
     return ESP_OK;
 }
 
-static esp_err_t controller_launchpad_ui_sysex_ready(void *context, lpui_t *ui, uint8_t *buffer, size_t length) {
+// private ui callback functions
+static esp_err_t _lpui_sysex_ready(void *context, lpui_t *ui, uint8_t *buffer, size_t length) {
     controller_launchpad_t *controller = context;
 
-    // pass the sysex to the midi send callback
+    // pass the sysex data to the midi send callback
     return controller_midi_send_sysex(&controller->super, buffer, length);
+}
+
+static esp_err_t _pattern_editor_step_selected(void *context, pattern_editor_t *editor, uint16_t step_position) {
+    return controller_launchpad_select_step(context, step_position);
 }
 
 esp_err_t controller_launchpad_init(void *context) {
     esp_err_t ret;
     controller_launchpad_t *controller = context;
 
+    controller->selected_track_id = -1;
+    controller->selected_step_position = -1;
+
     // setup launchpad ui
     const lpui_config_t ui_config = {
         .callbacks = {
             .context = controller,
-            .sysex_ready = controller_launchpad_ui_sysex_ready
+            .sysex_ready = _lpui_sysex_ready
         }
     };
     ret = lpui_init(&controller->ui, &ui_config);
@@ -90,13 +98,12 @@ esp_err_t controller_launchpad_init(void *context) {
     const pattern_editor_config_t pe_config = (pattern_editor_config_t) {
         .callbacks = {
             .context = controller,
-            .step_selected = controller_launchpad_step_selected,
+            .step_selected = _pattern_editor_step_selected,
         },
         .cmp_config = {
             .pos = { x: 1, y: 5 },
             .size = { width: 8, height: 4 }
-        },
-        .sequencer = controller->super.config.sequencer
+        }
     };
     pattern_editor_init(&controller->pattern_editor, &pe_config);
     lpui_add_component(&controller->ui, &controller->pattern_editor.cmp);
@@ -111,6 +118,9 @@ esp_err_t controller_launchpad_init(void *context) {
         }
     };
     lpui_add_component(&controller->ui, &controller->piano_editor.cmp); */
+
+    // select the first track
+    controller_launchpad_select_track(controller, 0);
 
     return ESP_OK;
 }
@@ -131,12 +141,12 @@ esp_err_t controller_launchpad_midi_recv(void *context, const midi_message_t *me
 
 esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t event, sequencer_t *sequencer, void *data) {
     controller_launchpad_t *controller = context;
+    pattern_editor_t *pe = &controller->pattern_editor;
 
     switch (event) {
         case SEQUENCER_TICK:
-            // update the pattern editor
-            pattern_editor_update(&controller->pattern_editor);
-
+            // if playing, update the pattern editor position
+            pattern_editor_update_step_position(&controller->pattern_editor);
             break;
         default:
             break;
@@ -145,9 +155,28 @@ esp_err_t controller_launchpad_sequencer_event(void *context, sequencer_event_t 
     return ESP_OK;
 }
 
-esp_err_t controller_launchpad_step_selected(void *context, pattern_editor_t *editor, uint16_t step_position) {
+esp_err_t controller_launchpad_select_track(void *context, int track_id) {
     controller_launchpad_t *controller = context;
-    pattern_t *pattern = pattern_editor_get_active_pattern(editor);
+
+    // set the new selected track id
+    if (controller->selected_track_id == track_id) return ESP_OK;
+    controller->selected_track_id = track_id;
+
+    // select the active pattern on that track (or NULL if no track is selected)
+    pattern_t *pattern = sequencer_get_active_pattern(controller->super.config.sequencer, track_id);
+    ESP_RETURN_ON_ERROR(pattern_editor_set_pattern(&controller->pattern_editor, track_id, pattern),
+        TAG, "Failed to set pattern editor pattern");
+
+    return ESP_OK;
+}
+
+esp_err_t controller_launchpad_select_step(void *context, uint16_t step_position) {
+    controller_launchpad_t *controller = context;
+    pattern_t *pattern = controller->pattern_editor.pattern;
+
+    // set the new selected step position
+    if (controller->selected_step_position == step_position) return ESP_OK;
+    controller->selected_step_position = step_position;
 
     // toggle the step velocity
     pattern_step_t *step = &pattern->steps[step_position];
@@ -158,7 +187,8 @@ esp_err_t controller_launchpad_step_selected(void *context, pattern_editor_t *ed
     }
 
     // redraw that specific step
-    pattern_editor_draw_steps(editor, pattern, &step_position, 1);
+    ESP_RETURN_ON_ERROR(pattern_editor_draw_steps(&controller->pattern_editor, &step_position, 1),
+        TAG, "Failed to redraw pattern editor step");
 
     return ESP_OK;
 }

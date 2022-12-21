@@ -58,3 +58,4 @@ esp_err_t sequencer_pause(sequencer_t *sequencer);
 
 esp_err_t sequencer_set_bpm(sequencer_t *sequencer, uint16_t bpm);
 uint64_t sequencer_get_tick_period_us(sequencer_t *sequencer);
+pattern_t *sequencer_get_active_pattern(sequencer_t *sequencer, int track_id);

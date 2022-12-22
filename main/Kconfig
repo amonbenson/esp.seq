@@ -1,0 +1,13 @@
+menu "esp-seq Application Configuration"
+    config APP_FORCE_LAUNCHPAD
+        bool
+        default n
+        help
+            Force app to use the launchpad controller
+
+    config APP_DUMP_PERIPHERALS
+        bool
+        default n
+        help
+            Dump peripheral data (midi and output) to serial port
+endmenu

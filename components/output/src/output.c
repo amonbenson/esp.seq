@@ -240,9 +240,9 @@ esp_err_t output_port_set_voltage(output_t *output, output_port_t *port, uint32_
         value_mv = port->config.vmax_mv;
     }
 
-    #ifdef VIRTUAL_PERIPHERALS_ENABLED
-        printf("OUTPUT port %d = %dmV", port->)
-    #endif
+    #ifdef CONFIG_APP_DUMP_PERIPHERALS
+        printf("OUTPUT port %d = %dmV", port->index, value_mv);
+    #else
         // set the voltage level
         if (port->config.type == OUTPUT_DIGITAL) {
             return output_port_set_voltage_digital(output, port, value_mv);

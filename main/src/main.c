@@ -1,5 +1,3 @@
-#include "main.h"
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -163,17 +161,18 @@ esp_err_t sequencer_event_callback(void *context, sequencer_event_t event, seque
 }
 
 esp_err_t controller_midi_send_callback(void *context, controller_t *controller, const midi_message_t *message) {
-    #ifdef USB_MIDI_ENABLED
-        return usb_midi_send(&usb_midi, message);
-    #else
-        #ifdef VIRTUAL_PERIPHERALS_ENABLED
-            printf("MIDIOUT ");
-            midi_message_print(message);
-        #else
-            ESP_LOGW(TAG, "cannot send midi message: usb midi not enabled.");
-        #endif
-        return ESP_OK;
+    // send midi message if the usb peripheral is available
+    #ifndef CONFIG_ESP_CONSOLE_USB_CDC
+        ESP_RETURN_ON_ERROR(usb_midi_send(&usb_midi, message),
+            TAG, "failed to send midi message");
     #endif
+
+    #ifdef CONFIG_APP_DUMP_PERIPHERALS
+        printf("MIDIOUT ");
+        midi_message_print(message);
+    #endif
+
+    return ESP_OK;
 }
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
@@ -212,8 +211,8 @@ void app_main(void) {
     // setup the file store
     //ESP_ERROR_CHECK(store_init());
 
-    // setup usb midi interface
-    #ifdef USB_MIDI_ENABLED
+    // setup usb midi interface (if not used by the console)
+    #ifndef CONFIG_ESP_CONSOLE_USB_CDC
         const usb_midi_config_t usb_midi_config = {
             .callbacks = {
                 .connected = usb_midi_connected_callback,
@@ -267,8 +266,8 @@ void app_main(void) {
         step->probability = 127;
     }
 
-    // create the virtual controller
-    #ifdef FORCE_CONTROLLER
+    // create the launchpad controller
+    #ifdef CONFIG_APP_FORCE_LAUNCHPAD
         const controller_config_t controller_config = {
             .callbacks = {
                 .midi_send = controller_midi_send_callback
@@ -276,7 +275,7 @@ void app_main(void) {
             .sequencer = &sequencer,
             .output = &output
         };
-        controller = controller_create(&FORCE_CONTROLLER, &controller_config);
+        controller = controller_create(&controller_class_launchpad, &controller_config);
         if (controller == NULL) {
             ESP_LOGE(TAG, "failed to create controller");
             return;

@@ -1,0 +1,13 @@
+DFU:
+    settings.json: "idf.flashAdditionalFlags": ""
+    console output: USB CDC
+    enable esp_rom_printf
+
+    define DISABLE_USB_MIDI
+
+UART:
+    settings.json: "idf.flashAdditionalFlags": "--no-stub --after no_reset"
+    console output: Custom UART (UART1, TX: 17, RX: 18)
+    disable esp_rom_printf
+
+    undefine DISABLE_USB_MIDI

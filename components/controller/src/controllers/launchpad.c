@@ -116,6 +116,7 @@ esp_err_t controller_launchpad_init(void *context) {
     controller_launchpad_t *controller = context;
 
     controller->selected_track_id = -1;
+    controller->selected_step = NULL;
 
     // setup launchpad ui
     const lpui_config_t ui_config = {
@@ -156,7 +157,7 @@ esp_err_t controller_launchpad_init(void *context) {
     button_draw(&controller->play_button);
 
     // initialize pattern editor
-    const pattern_editor_config_t pe_config = (pattern_editor_config_t) {
+    const pattern_editor_config_t pattern_editor_config = (pattern_editor_config_t) {
         .callbacks = {
             .context = controller,
             .pressed = _pattern_editor_pressed,
@@ -167,19 +168,19 @@ esp_err_t controller_launchpad_init(void *context) {
             .size = { width: 8, height: 4 }
         }
     };
-    pattern_editor_init(&controller->pattern_editor, &pe_config);
+    pattern_editor_init(&controller->pattern_editor, &pattern_editor_config);
     lpui_add_component(&controller->ui, &controller->pattern_editor.cmp);
 
     // initialize piano editor
-    /* controller->piano_editor = (lpui_piano_editor_t) {
-        .cmp = {
-            .config = {
-                .pos = { x: 1, y: 1 },
-                .size = { width: 8, height: 4 },
-            }
+    const piano_editor_config_t piano_editor_config = {
+        .cmp_config = {
+            .pos = { x: 1, y: 1 },
+            .size = { width: 8, height: 4 }
         }
     };
-    lpui_add_component(&controller->ui, &controller->piano_editor.cmp); */
+    piano_editor_init(&controller->piano_editor, &piano_editor_config);
+    lpui_add_component(&controller->ui, &controller->piano_editor.cmp);
+    piano_editor_draw(&controller->piano_editor);
 
     // select the first track.
     controller_launchpad_select_track(controller, 0);

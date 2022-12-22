@@ -14,5 +14,7 @@ typedef struct {
 
 
 esp_err_t piano_editor_init(piano_editor_t *editor, const piano_editor_config_t *config);
-esp_err_t piano_editor_update(piano_editor_t *editor);
 esp_err_t piano_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity);
+
+esp_err_t piano_editor_draw(piano_editor_t *editor);
+esp_err_t piano_editor_draw_note(piano_editor_t *editor, uint8_t note);

@@ -23,7 +23,13 @@ esp_err_t piano_editor_init(piano_editor_t *editor, const piano_editor_config_t 
     return ESP_OK;
 }
 
-static lpui_color_t lpui_piano_editor_get_key_color(piano_editor_t *editor, int8_t key) {
+esp_err_t piano_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity) {
+    ESP_LOGI(TAG, "piano editor button event at (%d, %d) with velocity %d", pos.x, pos.y, velocity);
+
+    return ESP_OK;
+}
+
+static lpui_color_t piano_editor_get_key_color(piano_editor_t *editor, int8_t key) {
     // check if key is valid
     if (key == -1) {
         return LPUI_COLOR_BLACK;
@@ -33,7 +39,8 @@ static lpui_color_t lpui_piano_editor_get_key_color(piano_editor_t *editor, int8
     return LPUI_COLOR_PIANO_RELEASED;
 }
 
-static esp_err_t lpui_piano_editor_draw(lpui_t *ui, piano_editor_t *editor) {
+esp_err_t piano_editor_draw(piano_editor_t *editor) {
+    lpui_t *ui = editor->cmp.ui;
     lpui_position_t *pos = &editor->cmp.config.pos;
     lpui_size_t *size = &editor->cmp.config.size;
 
@@ -44,7 +51,7 @@ static esp_err_t lpui_piano_editor_draw(lpui_t *ui, piano_editor_t *editor) {
         for (p.x = 0; p.x < size->width; p.x++) {
             uint8_t octave = p.y / 2;
             uint8_t key = lpui_piano_editor_note_map[p.y % 2][p.x % 8];
-            lpui_color_t color = lpui_piano_editor_get_key_color(editor, key);
+            lpui_color_t color = piano_editor_get_key_color(editor, key);
 
             lpui_sysex_add_led_color(ui, (lpui_position_t) {
                 .x = pos->x + p.x,
@@ -54,16 +61,6 @@ static esp_err_t lpui_piano_editor_draw(lpui_t *ui, piano_editor_t *editor) {
     }
 
     lpui_sysex_commit(ui);
-
-    return ESP_OK;
-}
-
-esp_err_t piano_editor_update(piano_editor_t *editor) {
-    return ESP_OK;
-}
-
-esp_err_t piano_editor_key_event(void *context, const lpui_position_t pos, uint8_t velocity) {
-    ESP_LOGI(TAG, "piano editor button event at (%d, %d) with velocity %d", pos.x, pos.y, velocity);
 
     return ESP_OK;
 }

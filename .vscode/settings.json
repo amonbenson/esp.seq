@@ -1,9 +1,9 @@
 {
   "C_Cpp.intelliSenseEngine": "Default",
-  "idf.portWin": "COM3",
+  "idf.portWin": "COM4",
   "idf.flashBaudRate": "460800",
   "idf.adapterTargetName": "esp32s2",
-  "idf.flashType": "UART",
+  "idf.flashType": "DFU",
   "files.associations": {
     "*.h": "c",
     "*.c": "c",
@@ -57,5 +57,6 @@
   "idf.customExtraPaths": "C:\\Users\\amonk\\.espressif\\tools\\xtensa-esp32-elf\\esp-2021r2-patch3-8.4.0\\xtensa-esp32-elf\\bin;C:\\Users\\amonk\\.espressif\\tools\\xtensa-esp32s2-elf\\esp-2021r2-patch3-8.4.0\\xtensa-esp32s2-elf\\bin;C:\\Users\\amonk\\.espressif\\tools\\xtensa-esp32s3-elf\\esp-2021r2-patch3-8.4.0\\xtensa-esp32s3-elf\\bin;C:\\Users\\amonk\\.espressif\\tools\\riscv32-esp-elf\\esp-2021r2-patch3-8.4.0\\riscv32-esp-elf\\bin;C:\\Users\\amonk\\.espressif\\tools\\esp32ulp-elf\\2.28.51-esp-20191205\\esp32ulp-elf-binutils\\bin;C:\\Users\\amonk\\.espressif\\tools\\esp32s2ulp-elf\\2.28.51-esp-20191205\\esp32s2ulp-elf-binutils\\bin;C:\\Users\\amonk\\.espressif\\tools\\cmake\\3.23.1\\bin;C:\\Users\\amonk\\.espressif\\tools\\openocd-esp32\\v0.11.0-esp32-20220411\\openocd-esp32\\bin;C:\\Users\\amonk\\.espressif\\tools\\ninja\\1.10.2;C:\\Users\\amonk\\.espressif\\tools\\idf-exe\\1.0.3;C:\\Users\\amonk\\.espressif\\tools\\ccache\\4.3\\ccache-4.3-windows-64;C:\\Users\\amonk\\.espressif\\tools\\dfu-util\\0.9\\dfu-util-0.9-win64",
   "idf.customExtraVars": "{\"OPENOCD_SCRIPTS\":\"C:\\\\Users\\\\amonk\\\\.espressif\\\\tools\\\\openocd-esp32\\\\v0.11.0-esp32-20220411/openocd-esp32/share/openocd/scripts\",\"IDF_CCACHE_ENABLE\":\"1\"}",
   "idf.gitPath": "C:\\Users\\amonk\\.espressif\\tools\\idf-git\\2.30.1\\cmd\\git.exe",
-  "idf.listDfuDevices": []
+  "idf.listDfuDevices": [],
+  "idf.flashAdditionalFlags": "" // "--no-stub --after no_reset"
 }

@@ -1,3 +1,5 @@
+#include "main.h"
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -161,7 +163,17 @@ esp_err_t sequencer_event_callback(void *context, sequencer_event_t event, seque
 }
 
 esp_err_t controller_midi_send_callback(void *context, controller_t *controller, const midi_message_t *message) {
-    return usb_midi_send(&usb_midi, message);
+    #ifdef USB_MIDI_ENABLED
+        return usb_midi_send(&usb_midi, message);
+    #else
+        #ifdef VIRTUAL_PERIPHERALS_ENABLED
+            printf("MIDIOUT ");
+            midi_message_print(message);
+        #else
+            ESP_LOGW(TAG, "cannot send midi message: usb midi not enabled.");
+        #endif
+        return ESP_OK;
+    #endif
 }
 
 void usb_midi_connected_callback(const usb_device_desc_t *desc) {
@@ -201,15 +213,17 @@ void app_main(void) {
     //ESP_ERROR_CHECK(store_init());
 
     // setup usb midi interface
-    const usb_midi_config_t usb_midi_config = {
-        .callbacks = {
-            .connected = usb_midi_connected_callback,
-            .disconnected = usb_midi_disconnected_callback,
-            .recv = usb_midi_recv_callback
-        }
-    };
-    ESP_ERROR_CHECK(usb_midi_init(&usb_midi_config, &usb_midi));
-    ESP_ERROR_CHECK(usb_init(&usb_midi.driver_config));
+    #ifdef USB_MIDI_ENABLED
+        const usb_midi_config_t usb_midi_config = {
+            .callbacks = {
+                .connected = usb_midi_connected_callback,
+                .disconnected = usb_midi_disconnected_callback,
+                .recv = usb_midi_recv_callback
+            }
+        };
+        ESP_ERROR_CHECK(usb_midi_init(&usb_midi_config, &usb_midi));
+        ESP_ERROR_CHECK(usb_init(&usb_midi.driver_config));
+    #endif
 
     // setup the output unit
     uint8_t num_port_configs = sizeof(output_port_configs) / sizeof(output_port_configs[0]);
@@ -252,6 +266,22 @@ void app_main(void) {
         step->gate = 64;
         step->probability = 127;
     }
+
+    // create the virtual controller
+    #ifdef FORCE_CONTROLLER
+        const controller_config_t controller_config = {
+            .callbacks = {
+                .midi_send = controller_midi_send_callback
+            },
+            .sequencer = &sequencer,
+            .output = &output
+        };
+        controller = controller_create(&FORCE_CONTROLLER, &controller_config);
+        if (controller == NULL) {
+            ESP_LOGE(TAG, "failed to create controller");
+            return;
+        }
+    #endif
 
     // start the sequencer
     //ESP_ERROR_CHECK(sequencer_play(&sequencer));

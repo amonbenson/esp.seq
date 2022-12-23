@@ -14,7 +14,7 @@
 #include <controllers/generic.h>
 
 
-static const char *TAG = "espmidi";
+static const char *TAG = "espseq";
 
 
 #define OUTPUT_COLUMNS 1
@@ -161,15 +161,15 @@ esp_err_t sequencer_event_callback(void *context, sequencer_event_t event, seque
 }
 
 esp_err_t controller_midi_send_callback(void *context, controller_t *controller, const midi_message_t *message) {
-    // send midi message if the usb peripheral is available
-    #ifndef CONFIG_ESP_CONSOLE_USB_CDC
-        ESP_RETURN_ON_ERROR(usb_midi_send(&usb_midi, message),
-            TAG, "failed to send midi message");
-    #endif
-
-    #ifdef CONFIG_APP_DUMP_PERIPHERALS
+    #ifdef CONFIG_ESPSEQ_DUMP_MIDI
         printf("MIDIOUT ");
         midi_message_print(message);
+    #endif
+
+    // send midi message if the usb peripheral is available
+    #ifdef CONFIG_ESPSEQ_USB_MIDI_ENABLE
+        ESP_RETURN_ON_ERROR(usb_midi_send(&usb_midi, message),
+            TAG, "failed to send midi message");
     #endif
 
     return ESP_OK;
@@ -212,7 +212,7 @@ void app_main(void) {
     //ESP_ERROR_CHECK(store_init());
 
     // setup usb midi interface (if not used by the console)
-    #ifndef CONFIG_ESP_CONSOLE_USB_CDC
+    #ifdef CONFIG_ESPSEQ_USB_MIDI_ENABLE
         const usb_midi_config_t usb_midi_config = {
             .callbacks = {
                 .connected = usb_midi_connected_callback,
@@ -267,7 +267,7 @@ void app_main(void) {
     }
 
     // create the launchpad controller
-    #ifdef CONFIG_APP_FORCE_LAUNCHPAD
+    #ifdef CONFIG_ESPSEQ_FORCE_LAUNCHPAD
         const controller_config_t controller_config = {
             .callbacks = {
                 .midi_send = controller_midi_send_callback

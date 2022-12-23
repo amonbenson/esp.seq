@@ -1,0 +1,32 @@
+menu "esp-seq"
+    # include relative sub components
+    rsource "../components/*/Kconfig"
+
+    config ESPSEQ_DUMP_ALL
+        bool "Dump all data"
+        default n
+        select ESPSEQ_DUMP_MIDI
+        select OUTPUT_DUMP_VOLTAGES
+        help
+            Dump various data to the default console.
+
+    config ESPSEQ_DUMP_MIDI
+        bool "Dump midi data"
+        default n
+        help
+            Dump midi data to the default console.
+
+    config ESPSEQ_USB_MIDI_ENABLE
+        bool "Enable USB Midi Interface"
+        default y
+        depends on !ESP_CONSOLE_USB_CDC # cannot enable usb midi if used as console output
+        help
+            Enable USB Midi Interface.
+
+    config ESPSEQ_FORCE_LAUNCHPAD
+        bool "Force Launchpad"
+        default n
+        help
+            Force app to use the Launchpad controller.
+
+endmenu

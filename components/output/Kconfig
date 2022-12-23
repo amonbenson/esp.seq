@@ -1,0 +1,8 @@
+menu "Output Configuration"
+    config OUTPUT_DUMP_VOLTAGES
+        bool "Dump voltages"
+        default n
+        help
+            Print output voltages to the standard console.
+
+endmenu

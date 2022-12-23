@@ -240,16 +240,16 @@ esp_err_t output_port_set_voltage(output_t *output, output_port_t *port, uint32_
         value_mv = port->config.vmax_mv;
     }
 
-    #ifdef CONFIG_APP_DUMP_PERIPHERALS
-        printf("OUTPUT port %d = %dmV", port->index, value_mv);
-    #else
-        // set the voltage level
-        if (port->config.type == OUTPUT_DIGITAL) {
-            return output_port_set_voltage_digital(output, port, value_mv);
-        } else {
-            return output_port_set_voltage_analog(output, port, value_mv);
-        }
+    #ifdef CONFIG_OUTPUT_DUMP_VOLTAGES
+        printf("OUTPUT %d = %dmV", port->index, value_mv);
     #endif
+
+    // set the voltage level
+    if (port->config.type == OUTPUT_DIGITAL) {
+        return output_port_set_voltage_digital(output, port, value_mv);
+    } else {
+        return output_port_set_voltage_analog(output, port, value_mv);
+    }
 }
 
 esp_err_t output_set_type(output_t *output, uint8_t column, uint8_t row, output_type_t type) {

@@ -2,7 +2,7 @@
     "configurations": [
         {
             "name": "ESP-IDF",
-            "compilerPath": "C:\\Users\\amonk\\.espressif\\tools\\xtensa-esp32s2-elf\\esp-2021r2-patch3-8.4.0\\xtensa-esp32s2-elf\\bin\\xtensa-esp32s2-elf-gcc.exe",
+            "compilerPath": "/opt/esp/tools/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin/xtensa-esp-elf-gcc",
             "cStandard": "c11",
             "cppStandard": "c++17",
             "includePath": [
